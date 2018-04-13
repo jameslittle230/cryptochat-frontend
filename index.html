@@ -4,26 +4,18 @@
 		<title>CryptoChat: Secure Online Messaging</title>
 	</head>
 	<body>
-		<ul id="messages"></ul>
-		<form action="">
-			<input id="m" autocomplete="off" /><button>Send</button>
-		</form>
+		<div id="app">
+			<ul id="messages">
+				<li v-for="message in messages">{{message}}</li>
+			</ul>
+			<form action="">
+				<input id="m" autocomplete="off" v-model="messageInput" />
+				<button v-on:click="sendMessage">Send</button>
+			</form>
+		</div>
 
-		<script src="http://penguinegg.com:8080/socket.io/socket.io.js"></script>
-		<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
-		<script>
-		  $(function () {
-		    var socket = io('http://penguinegg.com:8080/');
-		    $('form').submit(function(){
-		      socket.emit('msg', $('#m').val());
-		      $('#m').val('');
-		      return false;
-		    });
-
-		    socket.on('msg', function(msg){
-		      $('#messages').append($('<li>').text(msg));
-		    });
-		  });
-		</script>
+		<script src="http://localhost:8080/socket.io/socket.io.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+		<script src="app.js"></script>
 	</body>
 </html>
