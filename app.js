@@ -58,6 +58,7 @@ var app = new Vue({
 
 			var envelope = header + " " + iv + " " + cipherobj + " " + mac + " " + ke + " " + km + " " + "DEADBEEF";
 			console.log(envelope);
+			socket.emit('msg', envelope);
 		}
 	}
 });
