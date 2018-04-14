@@ -1,21 +1,31 @@
 <!doctype html>
 <html>
 	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 		<title>CryptoChat: Secure Online Messaging</title>
 	</head>
 	<body>
 		<div id="app">
+			<div v-if="connectionWarning"><strong>Warning: Cannot connect to Socket.io server!</strong></div>
 			<ul id="messages">
 				<li v-for="message in messages">{{message}}</li>
 			</ul>
-			<form action="">
-				<input id="m" autocomplete="off" v-model="messageInput" />
-				<button v-on:click="sendMessage">Send</button>
-			</form>
+
+			KE: <input type="text" id="ke" autocomplete="off" v-model="envelope.ke"><br>
+			IV: <input type="text" id="iv" autocomplete="off" v-model="envelope.iv"><br>
+			KM: <input type="text" id="km" autocomplete="off" v-model="envelope.km"><br>
+			SQN: <input type="number" id="seqnum" v-model="envelope.seqnum"><br>
+
+			<textarea id="payload" autocomplete="off" v-model="envelope.payload"></textarea>
+			<button v-on:click="generateEnvelope">Send</button>
 		</div>
 
 		<script src="http://localhost:8080/socket.io/socket.io.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+		<script src="./node_modules/crypto-js/crypto-js.js"></script>
+		<script src="./node_modules/jsencrypt/bin/jsencrypt.min.js"></script>
 		<script src="app.js"></script>
 	</body>
 </html>
