@@ -56,7 +56,7 @@ var app = new Vue({
 				km
 			));
 
-			var envelope = header + " " + iv + " " + cipherobj + " " + mac + " " + ke + " " + km + " " + "DEADBEEF";
+			var envelope = header + iv + cipherobj + mac + ke + km + "signature";
 			console.log(envelope);
 			socket.emit('msg', envelope);
 		}
@@ -67,8 +67,17 @@ if(io in window) {
 	app.connectionWarning = true;
 }
 
-var socket = io('http://localhost:8080/');
+var socket;
+if(document.hostname == "localhost" || document.hostname == "127.0.0.1") {
+	socket = io('http://localhost:8080/');
+} else {
+	socket = io('http://penguinegg.com:8080');
+}
 
 socket.on('msg', function(msg){
 	app.messages.push(msg);
+});
+
+socket.on('log', function(log) {
+	console.log("Server Log: " + log);
 });
