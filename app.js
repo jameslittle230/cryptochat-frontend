@@ -63,7 +63,7 @@ var app = new Vue({
 	}
 });
 
-if(io in window) {
+try { io } catch(e) {
 	app.connectionWarning = true;
 }
 
