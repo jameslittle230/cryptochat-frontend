@@ -1,3 +1,24 @@
+try { io } catch(e) {
+	app.connectionWarning = true;
+}
+
+var socket;
+if(window.location.hostname == "localhost" || window.location.hostname == "127.0.0.1") {
+	socket = io('http://localhost:8080/');
+	axios.defaults.baseURL = 'http://localhost:8080/';
+} else {
+	socket = io('http://penguinegg.com:8080');
+	axios.defaults.baseURL = 'http://penguinegg.com:8080/';
+}
+
+socket.on('msg', function(msg){
+	app.messages.push(msg);
+});
+
+socket.on('log', function(log) {
+	console.log("Server Log: " + log);
+});
+
 var app = new Vue({
 	el: '#app',
 	data: {
@@ -11,20 +32,10 @@ var app = new Vue({
 			seqnum: 587
 		},
 
-		messages: [
-			"This is a message",
-			"It has some text"
-		]
+		messages: []
 	},
 
 	methods: {
-		sendMessage: function(e) {
-			e.preventDefault();
-			socket.emit('msg', this.messageInput)
-			this.messageInput = "";
-			return;
-		},
-
 		generateEnvelope: function(e) {
 			e.preventDefault();
 
@@ -56,28 +67,26 @@ var app = new Vue({
 				km
 			));
 
-			var envelope = header + iv + cipherobj + mac + ke + km + "signature";
+			var envelope = header + iv + cipherobj + mac + ke + km + "deadbeef";
 			console.log(envelope);
 			socket.emit('msg', envelope);
+		},
+
+		getMessagesFromDatabase: function() {
+			axios.get('messages?recipient=2')
+			.then(function (response) {
+				console.log(response.data);
+				response.data.forEach(function(r) {
+					app.messages.push(r.content)
+				})
+			})
+			.catch(function (error) {
+				console.log(error);
+			});
 		}
+	},
+
+	mounted: function () {
+		this.getMessagesFromDatabase();
 	}
-});
-
-try { io } catch(e) {
-	app.connectionWarning = true;
-}
-
-var socket;
-if(document.hostname == "localhost" || document.hostname == "127.0.0.1") {
-	socket = io('http://localhost:8080/');
-} else {
-	socket = io('http://penguinegg.com:8080');
-}
-
-socket.on('msg', function(msg){
-	app.messages.push(msg);
-});
-
-socket.on('log', function(log) {
-	console.log("Server Log: " + log);
 });
