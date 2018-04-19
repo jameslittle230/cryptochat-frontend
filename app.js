@@ -27,7 +27,6 @@ var app = new Vue({
 		envelope: {
 			iv: "3bbdce68b2736ed96972d56865ad82a2",
 			ke: "a891f95cc50bd872e8fcd96cf5030535e273c5210570b3dcfa7946873d167c57",
-			km: "80070713463e7749b90c2dc24911e275",
 			snd: "",
 			rcv: "",
 			payload: "asdfasdf",
@@ -44,7 +43,6 @@ var app = new Vue({
 
 			var iv = CryptoJS.enc.Hex.parse(this.envelope.iv);
 			var ke = CryptoJS.enc.Hex.parse(this.envelope.ke);
-			var km = CryptoJS.enc.Hex.parse(this.envelope.km);
 			var payload = this.envelope.payload;
 			var seqnum = this.envelope.seqnum;
 			var snd = this.envelope.snd;
@@ -72,12 +70,7 @@ var app = new Vue({
 				("000000000000" + Date.now().toString(16)).substr(-8)
 			].join(""));
 
-			var mac = CryptoJS.enc.Hex.stringify(CryptoJS.HmacSHA256(
-				header + iv + cipherobj,
-				km
-			));
-
-			var envelope = header + iv + cipherobj + mac + ke + km + "deadbeef";
+			var envelope = header + iv + cipherobj + ke + "deadbeef";
 			console.log(envelope);
 			socket.emit('msg', envelope);
 		},
