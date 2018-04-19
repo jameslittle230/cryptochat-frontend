@@ -28,15 +28,18 @@ var app = new Vue({
 			iv: "3bbdce68b2736ed96972d56865ad82a2",
 			ke: "a891f95cc50bd872e8fcd96cf5030535e273c5210570b3dcfa7946873d167c57",
 			km: "80070713463e7749b90c2dc24911e275",
+			snd: "",
+			rcv: "",
 			payload: "asdfasdf",
 			seqnum: 587
 		},
 
-		messages: []
+		messages: [],
+		users: [],
 	},
 
 	methods: {
-		generateEnvelope: function(e) {
+		sendMessage: function(e) {
 			e.preventDefault();
 
 			var iv = CryptoJS.enc.Hex.parse(this.envelope.iv);
@@ -44,6 +47,9 @@ var app = new Vue({
 			var km = CryptoJS.enc.Hex.parse(this.envelope.km);
 			var payload = this.envelope.payload;
 			var seqnum = this.envelope.seqnum;
+			var snd = this.envelope.snd;
+			var rcv = this.envelope.rcv;
+			var cht = 0;
 
 			var cipherobj = CryptoJS.AES.encrypt(
 				payload,
@@ -58,8 +64,12 @@ var app = new Vue({
 			var header = CryptoJS.enc.Hex.parse([
 				"0001",
 				"00",
-				("0000000" + cipherobj.sigBytes.toString(16)).substr(-8),
-				("0000000" + parseInt(seqnum).toString(16)).substr(-8)
+				("00000000" + cipherobj.sigBytes.toString(16)).substr(-8),
+				("00000000" + parseInt(seqnum).toString(16)).substr(-8),
+				("0000" + parseInt(snd).toString(16)).substr(-8),
+				("0000" + parseInt(rcv).toString(16)).substr(-8),
+				("0000" + parseInt(cht).toString(16)).substr(-8),
+				("000000000000" + Date.now().toString(16)).substr(-8)
 			].join(""));
 
 			var mac = CryptoJS.enc.Hex.stringify(CryptoJS.HmacSHA256(
@@ -83,10 +93,18 @@ var app = new Vue({
 			.catch(function (error) {
 				console.log(error);
 			});
+		},
+
+		getUsersFromDatabase: function() {
+			axios.get('users')
+			.then(function(response) {
+				app.users = response.data
+			});
 		}
 	},
 
 	mounted: function () {
 		this.getMessagesFromDatabase();
+		this.getUsersFromDatabase();
 	}
 });
