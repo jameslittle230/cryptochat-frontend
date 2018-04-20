@@ -21,37 +21,47 @@
 	<body>
 		<div id="app">
 			<div v-if="connectionWarning"><strong>Warning: Cannot connect to Socket.io server!</strong></div>
+			<span>Create User:</span><br>
+			Username: <input type="text" id="newuser_username" v-model="newuser_username"><br>
+			Password: <input type="password" id="newuser_password" v-model="newuser_password"><br>
+			<button v-on:click="createNewUser">Create New User</button>
+
+			<hr>
+			
 			<ul id="messages">
 				<li v-for="message in messages"><pre>{{message}}</pre></li>
 			</ul>
 
 			<hr>
 
-			<label for="snd">SND:</label>
-			<select v-model="envelope.snd" id="snd">
+			<!-- <label for="snd">SND:</label>
+			<select v-model="messageDraftData.snd" id="snd">
 				<option v-for="user in users" v-bind:value="user.user_id">
 				{{ user.first_name + " " + user.last_name }}
 				</option>
 			</select>
-			<span>Selected: {{ envelope.snd }}</span><br>
+			<span>Selected: {{ messageDraftData.snd }}</span><br> -->
 
 			<label for="rcv">RCV:</label>
-			<select v-model="envelope.rcv" id="rcv">
-				<option v-for="user in users" v-bind:value="user.user_id" v-if="user.user_id != envelope.snd">
+			<select v-model="messageDraftData.rcv" id="rcv">
+				<option v-for="user in users" v-bind:value="user.user_id" v-if="user.user_id != messageDraftData.snd">
 				{{ user.first_name + " " + user.last_name }}
 				</option>
 			</select>
-			<span>Selected: {{ envelope.rcv }}</span><br>
+			<span>Selected: {{ messageDraftData.rcv }}</span>
+			<span>Key: {{messageDraftData.rcvPubPem}}<br>
 
 			<label for="ke">KE:</label>
-			<input type="text" id="ke" autocomplete="off" style="width: 600px;" disabled="disabled" v-model="envelope.ke"><br>
+			<input type="text" id="ke" autocomplete="off" style="width: 600px;" disabled="disabled" v-model="messageDraftData.ke"><br>
 			<label for="iv">IV:</label>
-			<input type="text" id="iv" autocomplete="off" style="width: 300px;" disabled="disabled" v-model="envelope.iv"><br>
+			<input type="text" id="iv" autocomplete="off" style="width: 300px;" disabled="disabled" v-model="messageDraftData.iv"><br>
 			<label for="sqn">SQN:</label>
-			<input type="number" id="seqnum" v-model="envelope.seqnum"><br>
+			<input type="number" id="seqnum" v-model="messageDraftData.seqnum"><br>
 
-			<textarea id="payload" autocomplete="off" v-model="envelope.payload"></textarea>
+			<textarea id="payload" autocomplete="off" v-model="messageDraftData.payload"></textarea><br>
 			<button v-on:click="sendMessage">Send</button>
+			<hr>
+			<textarea>{{ envelope }}</textarea>
 		</div>
 
 		<script>
@@ -63,10 +73,7 @@
 			}
 		</script>
 
-		<script src="./node_modules/axios/dist/axios.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-		<script src="./node_modules/crypto-js/crypto-js.js"></script>
-		<script src="./node_modules/jsencrypt/bin/jsencrypt.min.js"></script>
-		<script src="app.js"></script>
+		<script src="build.js"></script>
 	</body>
 </html>
