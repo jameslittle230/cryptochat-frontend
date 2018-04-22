@@ -25,20 +25,25 @@ socket.on('log', function(log) {
 	console.log("Server Log: " + log);
 });
 
+function getRandomIV() {return "3bbdce68b2736ed96972d56865ad82a2";}
+function getRandomKE() {return "a891f95cc50bd872e8fcd96cf5030535e273c5210570b3dcfa7946873d167c57";}
+
 var app = new Vue({
 	el: '#app',
 	data: {
 		connectionWarning: false,
+		isUserSelected: false,
+		selectedUser: {
+			user_id: null,
+			private_key: null
+		},
+
+		canSelectChat: false,
+		chats: {},
+		selectedChat: null,
 
 		messageDraftData: {
-			iv: "3bbdce68b2736ed96972d56865ad82a2",
-			ke: "a891f95cc50bd872e8fcd96cf5030535e273c5210570b3dcfa7946873d167c57",
-			snd: "1",
-			rcv: "",
 			payload: "asdfasdf",
-			seqnum: 587,
-			rcvPubPem: "",
-			sndPrivPem: ""
 		},
 
 		messages: [],
@@ -49,15 +54,44 @@ var app = new Vue({
 	},
 
 	computed: {
-		envelope: function() {
-			var iv = CryptoJS.enc.Hex.parse(this.messageDraftData.iv);
-			var ke = CryptoJS.enc.Hex.parse(this.messageDraftData.ke);
+		canUseChatInterface: function() {
+			return this.selectedChat != null;
+		}
+	},
+
+	methods: {
+		selectUser: function() {
+			this.isUserSelected = true;
+
+			this.getPrivateKey(this.selectedUser.user_id);
+
+			axios.get('chats?user_id=' + this.selectedUser.user_id)
+			.then(function(response) {
+				var chats = response.data;
+
+				chats.forEach(function(chat) {
+					console.log(chat);
+					app.chats[chat.chat_id] = {
+						chat_id: chat.chat_id,
+						seqnum: chat.sequence_number,
+						members: chat.members,
+						desc: chat.members.filter(m => m.user_id != app.selectedUser.user_id).map(m => m.first_name + " " + m.last_name).join(", ")
+					};
+				});
+
+				app.canSelectChat = true;
+			});
+		},
+
+		generateEnvelope: function(rcv_id, callback) {
+			var iv = getRandomIV();
+			var ke = getRandomKE();
 			var payload = this.messageDraftData.payload;
-			var seqnum = this.messageDraftData.seqnum;
-			var snd = this.messageDraftData.snd;
-			var rcv = this.messageDraftData.rcv;
-			var cht = 0;
-			var sig = "";
+			var seqnum = this.chats[this.selectedChat].seqnum;
+			var snd = this.selectedUser.user_id;
+			var rcv = rcv_id;
+			var cht = this.selectedChat;
+			var snd_privkey_pem = this.selectedUser.private_key;
 
 			var cipherobj = CryptoJS.AES.encrypt(
 				payload, ke, {iv: iv}
@@ -74,30 +108,29 @@ var app = new Vue({
 				("000000000000" + Date.now().toString(16)).substr(-12)
 			].join(""));
 
-			if(this.messageDraftData.rcvPubPem && this.messageDraftData.sndPrivPem) {
-				var rcvPubkey = new NodeRSA();
-				rcvPubkey.importKey(this.messageDraftData.rcvPubPem);
-				ke = rcvPubkey.encrypt(ke, 'hex', 'hex');
+			this.getPublicKey(rcv, function(rcv_pubkey_pem) {
+				var rcv_pubkey = new NodeRSA();
+				rcv_pubkey.importKey(rcv_pubkey_pem);
+				ke = rcv_pubkey.encrypt(ke, 'hex', 'hex');
 
-				var sndPrivkey = new NodeRSA(this.messageDraftData.sndPrivPem, 'private');
+				var snd_privkey = new NodeRSA();
+				snd_privkey.importKey(snd_privkey_pem, 'private');
 				var sigData = header + iv + cipherobj + ke;
-				sig = sndPrivkey.sign(sigData, 'hex', 'hex');
-			}
+				var sig = snd_privkey.sign(sigData, 'hex', 'hex');
 
-			var envelope = header + iv + cipherobj + ke + sig;
-			return envelope;
-		}
-	},
-
-	methods: {
-		sendMessage: function(e) {
-			socket.emit('msg', this.envelope);
-			this.randomizeThings();
+				var envelope = header + iv + cipherobj + ke + sig;
+				console.log(envelope);
+				callback(envelope);
+			});
 		},
 
-		randomizeThings: function() {
-			this.envelope.seqnum++;
-
+		sendMessage: function(e) {
+			this.chats[this.selectedChat].members.forEach(function(member) {
+				var envelope = app.generateEnvelope(member.user_id, function(envelope) {
+					console.log("Sending message\n", envelope);
+					socket.emit('msg', envelope);
+				});
+			});
 		},
 
 		getMessagesFromDatabase: function() {
@@ -116,35 +149,24 @@ var app = new Vue({
 			});
 		},
 
-		createNewUser: function() {
-			alert("New user");
-		},
-
-		getPublicKey: function(user_id) {
+		getPublicKey: function(user_id, callback) {
 			axios.get('publicKey?user_id=' + user_id)
 			.then(function(response) {
-				app.messageDraftData.rcvPubPem = response.data;
+				callback(response.data);
 			});
 		},
 
 		getPrivateKey: function(user_id) {
 			axios.get('privateKey?user_id=' + user_id)
 			.then(function(response) {
-				app.messageDraftData.sndPrivPem = response.data;
+				app.selectedUser.private_key = response.data;
 			});
-		}
-	},
-
-	watch: {
-		'messageDraftData.rcv': function(val) {
-			this.getPublicKey(val);
 		}
 	},
 
 	mounted: function () {
 		this.getMessagesFromDatabase();
 		this.getUsersFromDatabase();
-		this.getPrivateKey(this.messageDraftData.snd);
 	}
 });
 },{"axios":8,"crypto-js":41,"node-rsa":68}],2:[function(require,module,exports){

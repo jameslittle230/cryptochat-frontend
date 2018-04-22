@@ -21,47 +21,43 @@
 	<body>
 		<div id="app">
 			<div v-if="connectionWarning"><strong>Warning: Cannot connect to Socket.io server!</strong></div>
-			<span>Create User:</span><br>
-			Username: <input type="text" id="newuser_username" v-model="newuser_username"><br>
-			Password: <input type="password" id="newuser_password" v-model="newuser_password"><br>
-			<button v-on:click="createNewUser">Create New User</button>
 
-			<hr>
+			<div id="loginFlow">
+				<span>Who are you?</span><br>
+				<select v-model="selectedUser.user_id" id="selectedUser">
+					<option 
+						v-for="user in users" 
+						v-bind:value="user.user_id" 
+						v-bind:disabled="isUserSelected">
+							{{ user.first_name + " " + user.last_name }}
+					</option>
+				</select>
+				<button v-on:click="selectUser" v-bind:disabled="isUserSelected">Log In</button>
+			</div>
+
+			<div class="chatSelectFlow" v-if="canSelectChat">
+				<hr>
+				<span>Who do you want to chat with?</span><br>
+				<select v-model="selectedChat" id="selectedChat">
+					<option 
+						v-for="chat in chats" 
+						v-bind:value="chat.chat_id">
+							{{ chat.desc }}
+					</option>
+				</select>
+
+			</div>
+
+			<div class="chatInterface" v-if="canUseChatInterface">
+				<hr>
 			
-			<ul id="messages">
-				<li v-for="message in messages"><pre>{{message}}</pre></li>
-			</ul>
+				<ul id="messages">
+					<li v-for="message in messages"><pre>{{message}}</pre></li>
+				</ul>
 
-			<hr>
-
-			<!-- <label for="snd">SND:</label>
-			<select v-model="messageDraftData.snd" id="snd">
-				<option v-for="user in users" v-bind:value="user.user_id">
-				{{ user.first_name + " " + user.last_name }}
-				</option>
-			</select>
-			<span>Selected: {{ messageDraftData.snd }}</span><br> -->
-
-			<label for="rcv">RCV:</label>
-			<select v-model="messageDraftData.rcv" id="rcv">
-				<option v-for="user in users" v-bind:value="user.user_id" v-if="user.user_id != messageDraftData.snd">
-				{{ user.first_name + " " + user.last_name }}
-				</option>
-			</select>
-			<span>Selected: {{ messageDraftData.rcv }}</span>
-			<span>Key: {{messageDraftData.rcvPubPem}}<br>
-
-			<label for="ke">KE:</label>
-			<input type="text" id="ke" autocomplete="off" style="width: 600px;" disabled="disabled" v-model="messageDraftData.ke"><br>
-			<label for="iv">IV:</label>
-			<input type="text" id="iv" autocomplete="off" style="width: 300px;" disabled="disabled" v-model="messageDraftData.iv"><br>
-			<label for="sqn">SQN:</label>
-			<input type="number" id="seqnum" v-model="messageDraftData.seqnum"><br>
-
-			<textarea id="payload" autocomplete="off" v-model="messageDraftData.payload"></textarea><br>
-			<button v-on:click="sendMessage">Send</button>
-			<hr>
-			<textarea>{{ envelope }}</textarea>
+				<textarea id="payload" autocomplete="off" v-model="messageDraftData.payload"></textarea><br>
+				<button v-on:click="sendMessage">Send</button>
+			</div>
 		</div>
 
 		<script>
