@@ -6,10 +6,21 @@
 		<title>CryptoChat: Secure Online Messaging</title>
 
 		<style>
+			ul {
+				max-width: 800px;
+			}
+
 			li {
+				max-width: 600px;
 				overflow-wrap: break-word;
 				word-wrap: break-word;
 				word-break: break-word;
+				text-align: right;
+			}
+
+			.me {
+				font-weight: bold;
+				text-align: left;
 			}
 
 			label {
@@ -52,7 +63,10 @@
 				<hr>
 			
 				<ul id="messages">
-					<li v-for="message in messages"><pre>{{message}}</pre></li>
+					<li 
+					v-for="message in messages"
+					v-if="message.cht == selectedChat"
+					v-bind:class="{me: message.snd == selectedUser.user_id}">{{message.content}}<br><small>{{message.timestamp | timeago}}</small></li>
 				</ul>
 
 				<textarea id="payload" autocomplete="off" v-model="messageDraftData.payload"></textarea><br>

@@ -1,6 +1,7 @@
 var axios = require('axios');
 var CryptoJS = require('crypto-js');
 var NodeRSA = require('node-rsa');
+var Moment = require('moment')
 
 try { io } catch(e) {
 	app.connectionWarning = true;
@@ -17,7 +18,7 @@ if(window.location.hostname == "localhost" || window.location.hostname == "127.0
 }
 
 socket.on('msg', function(msg){
-	app.messages.push(msg);
+	app.recieveMessage(msg);
 });
 
 socket.on('log', function(log) {
@@ -64,14 +65,15 @@ var app = new Vue({
 
 			socket.emit('login', this.selectedUser.user_id);
 
-			this.getPrivateKey(this.selectedUser.user_id);
+			this.getPrivateKey(this.selectedUser.user_id, function() {
+				app.getMessagesFromDatabase();
+			});
 
 			axios.get('chats?user_id=' + this.selectedUser.user_id)
 			.then(function(response) {
 				var chats = response.data;
 
 				chats.forEach(function(chat) {
-					console.log(chat);
 					app.chats[chat.chat_id] = {
 						chat_id: chat.chat_id,
 						seqnum: chat.sequence_number,
@@ -94,14 +96,17 @@ var app = new Vue({
 			var cht = this.selectedChat;
 			var snd_privkey_pem = this.selectedUser.private_key;
 
-			var cipherobj = CryptoJS.AES.encrypt(
+			var ciphertext = CryptoJS.AES.encrypt(
 				payload, ke, {iv: iv}
-			).ciphertext;
+			);
+
+			ciphertext = ciphertext.toString();
+			ciphertext = CryptoJS.enc.Base64.parse(ciphertext).toString(CryptoJS.enc.hex)
 
 			var header = CryptoJS.enc.Hex.parse([
 				"0001",
 				"00",
-				("00000000" + cipherobj.sigBytes.toString(16)).substr(-8),
+				("00000000" + ciphertext.length.toString(16)).substr(-8),
 				("00000000" + parseInt(seqnum).toString(16)).substr(-8),
 				("0000" + parseInt(snd).toString(16)).substr(-4),
 				("0000" + parseInt(rcv).toString(16)).substr(-4),
@@ -111,34 +116,82 @@ var app = new Vue({
 
 			this.getPublicKey(rcv, function(rcv_pubkey_pem) {
 				var rcv_pubkey = new NodeRSA();
-				rcv_pubkey.importKey(rcv_pubkey_pem);
+				rcv_pubkey.importKey(rcv_pubkey_pem, 'public');
 				ke = rcv_pubkey.encrypt(ke, 'hex', 'hex');
 
 				var snd_privkey = new NodeRSA();
 				snd_privkey.importKey(snd_privkey_pem, 'private');
-				var sigData = header + iv + cipherobj + ke;
+				var sigData = header + iv + ciphertext + ke;
 				var sig = snd_privkey.sign(sigData, 'hex', 'hex');
 
-				var envelope = header + iv + cipherobj + ke + sig;
-				console.log(envelope);
+				var envelope = header + iv + ciphertext + ke + sig;
 				callback(envelope);
 			});
+		},
+
+		parseMessage: function(msg) {
+			var version = msg.substring(0, 4);
+			var type, len, seq_num, snd, rcv, cht, timestamp;
+
+			if(version == "0001") {
+				type = msg.substring(4, 6);
+				len = parseInt(msg.substring(6, 14), 16);
+				seq_num = parseInt(msg.substring(14, 22), 16);
+				snd = parseInt(msg.substring(22, 26), 16);
+				rcv = parseInt(msg.substring(26, 30), 16);
+				cht = parseInt(msg.substring(30, 34), 16);
+				timestamp = parseInt(msg.substring(34, 46), 16);
+
+				iv = msg.substring(46, 78);
+
+				payload_endindex = 78 + len;
+				payload = msg.substring(78, payload_endindex);
+				ke = msg.substring(payload_endindex, payload_endindex+256);
+				sig = msg.substring(payload_endindex+64, payload_endindex+256+256);
+
+				var rcv_privkey = new NodeRSA();
+				rcv_privkey.importKey(this.selectedUser.private_key, "private");
+				ke = CryptoJS.enc.Hex.parse(ke).toString(CryptoJS.enc.Base64);
+				ke = rcv_privkey.decrypt(ke, 'hex');
+
+				var ciphertext = CryptoJS.enc.Hex.parse(payload).toString(CryptoJS.enc.Base64);
+
+				var cipherobj = CryptoJS.AES.decrypt(
+					ciphertext, ke, {iv: iv}
+				);
+
+				var plaintext = cipherobj.toString(CryptoJS.enc.Utf8);
+			}
+
+			return {
+				type: type,
+				snd: snd,
+				rcv: rcv,
+				cht: cht,
+				timestamp: timestamp,
+				content: plaintext
+			};
 		},
 
 		sendMessage: function(e) {
 			this.chats[this.selectedChat].members.forEach(function(member) {
 				var envelope = app.generateEnvelope(member.user_id, function(envelope) {
-					console.log("Sending message\n", envelope);
 					socket.emit('msg', envelope);
 				});
 			});
 		},
 
+		recieveMessage: function(msg) {
+			msg = this.parseMessage(msg);
+			this.messages.push(msg)
+		},
+
 		getMessagesFromDatabase: function() {
-			axios.get('messages?recipient=2')
+			axios.get('messages?recipient=' + this.selectedUser.user_id)
 			.then(function (response) {
 				response.data.forEach(function(r) {
-					app.messages.push(r.content)
+					var msg = app.parseMessage(r.content)
+					app.messages.push(msg);
 				})
 			})
 		},
@@ -157,16 +210,23 @@ var app = new Vue({
 			});
 		},
 
-		getPrivateKey: function(user_id) {
+		getPrivateKey: function(user_id, callback) {
 			axios.get('privateKey?user_id=' + user_id)
 			.then(function(response) {
 				app.selectedUser.private_key = response.data;
+				callback(response.data);
 			});
 		}
 	},
 
 	mounted: function () {
-		this.getMessagesFromDatabase();
 		this.getUsersFromDatabase();
+	},
+
+	filters: {
+		timeago: function (value) {
+			if (!value) return ''
+			return Moment(value).fromNow();
+		}
 	}
 });
