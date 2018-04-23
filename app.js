@@ -62,6 +62,8 @@ var app = new Vue({
 		selectUser: function() {
 			this.isUserSelected = true;
 
+			socket.emit('login', this.selectedUser.user_id);
+
 			this.getPrivateKey(this.selectedUser.user_id);
 
 			axios.get('chats?user_id=' + this.selectedUser.user_id)
