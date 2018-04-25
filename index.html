@@ -6,16 +6,22 @@
 		<title>CryptoChat: Secure Online Messaging</title>
 
 		<style>
-			ul {
-				max-width: 800px;
+			ul, textarea {
+				width: 600px;
+				min-height: 300px;
+				padding: 0;
 			}
 
 			li {
-				max-width: 600px;
+				width: 600px;
 				overflow-wrap: break-word;
 				word-wrap: break-word;
 				word-break: break-word;
 				text-align: right;
+				list-style-type: none;
+				padding-bottom: 4px;
+				margin-bottom: 4px;
+				border-bottom: 1px dotted #ccc;
 			}
 
 			.me {
@@ -66,10 +72,14 @@
 					<li 
 					v-for="message in messages"
 					v-if="message.cht == selectedChat"
-					v-bind:class="{me: message.snd == selectedUser.user_id}">{{message.content}}<br><small>{{message.timestamp | timeago}}</small></li>
+					v-bind:class="{me: message.snd == selectedUser.user_id}">
+						{{message.content}}<br>
+						<small>{{message.timestamp | timeago}} &bullet; {{message.snd | fullName}}</small>
+					</li>
 				</ul>
 
-				<textarea id="payload" autocomplete="off" v-model="messageDraftData.payload"></textarea><br>
+				<textarea id="payload" autocomplete="off" v-model="messageDraftData.payload"
+					v-on:keydown.enter="sendMessage"></textarea><br>
 				<button v-on:click="sendMessage">Send</button>
 			</div>
 		</div>

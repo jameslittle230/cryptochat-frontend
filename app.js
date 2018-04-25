@@ -43,7 +43,7 @@ var app = new Vue({
 		selectedChat: null,
 
 		messageDraftData: {
-			payload: "asdfasdf",
+			payload: "",
 		},
 
 		messages: [],
@@ -177,6 +177,7 @@ var app = new Vue({
 			this.chats[this.selectedChat].members.forEach(function(member) {
 				var envelope = app.generateEnvelope(member.user_id, function(envelope) {
 					socket.emit('msg', envelope);
+					app.messageDraftData.payload = "";
 				});
 			});
 		},
@@ -227,6 +228,12 @@ var app = new Vue({
 		timeago: function (value) {
 			if (!value) return ''
 			return Moment(value).fromNow();
+		},
+
+		fullName: function(id) {
+			if(!id) return '';
+			user = app.users.filter(u => u.user_id == id)[0];
+			return user.first_name + " " + user.last_name;
 		}
 	}
 });
