@@ -1,4 +1,4 @@
-var axios = require('axios');
+global.axios = require('axios');
 var CryptoJS = require('crypto-js');
 var NodeRSA = require('node-rsa');
 var Moment = require('moment')
@@ -28,29 +28,30 @@ socket.on('log', function(log) {
 function getRandomIV() {return "3bbdce68b2736ed96972d56865ad82a2";}
 function getRandomKE() {return "a891f95cc50bd872e8fcd96cf5030535e273c5210570b3dcfa7946873d167c57";}
 
+require('./loginForm.js');
+
 var app = new Vue({
 	el: '#app',
 	data: {
-		connectionWarning: false,
-		isUserSelected: false,
-		selectedUser: {
-			user_id: null,
-			private_key: null
-		},
+		uiState: "login", // login, register, chat
 
-		canSelectChat: false,
-		chats: {},
+		// User/Cryptographic information
+		currentUser: null,
+		password: null,
+		keys: [],
+
+		// Chats
+		chats: [],
 		selectedChat: null,
 
+		// Drafts
 		messageDraftData: {
 			payload: "",
 		},
 
+		// Other cache data
 		messages: [],
 		users: [],
-
-		newuser_username: "",
-		newuser_password: "",
 	},
 
 	computed: {
@@ -60,31 +61,39 @@ var app = new Vue({
 	},
 
 	methods: {
-		selectUser: function() {
-			this.isUserSelected = true;
-
-			socket.emit('login', this.selectedUser.user_id);
-
-			this.getPrivateKey(this.selectedUser.user_id, function() {
-				app.getMessagesFromDatabase();
-			});
-
-			axios.get('chats?user_id=' + this.selectedUser.user_id)
-			.then(function(response) {
-				var chats = response.data;
-
-				chats.forEach(function(chat) {
-					app.chats[chat.chat_id] = {
-						chat_id: chat.chat_id,
-						seqnum: chat.sequence_number,
-						members: chat.members,
-						desc: chat.members.filter(m => m.user_id != app.selectedUser.user_id).map(m => m.first_name + " " + m.last_name).join(", ")
-					};
-				});
-
-				app.canSelectChat = true;
-			});
+		processSuccessfulLoginWithCredentials(username, password) {
+			console.log("Login successful with creds", username, password);
+			this.password = password;
+			this.currentUser = this.users.filter(u => u.username == username)[0];
+			// @TODO check for error here
+			this.uiState = "chat";
 		},
+
+		// selectUser: function() {
+		// 	this.isUserSelected = true;
+
+		// 	socket.emit('login', this.selectedUser.user_id);
+
+		// 	this.getPrivateKey(this.selectedUser.user_id, function() {
+		// 		app.getMessagesFromDatabase();
+		// 	});
+
+		// 	axios.get('chats?user_id=' + this.selectedUser.user_id)
+		// 	.then(function(response) {
+		// 		var chats = response.data;
+
+		// 		chats.forEach(function(chat) {
+		// 			app.chats[chat.chat_id] = {
+		// 				chat_id: chat.chat_id,
+		// 				seqnum: chat.sequence_number,
+		// 				members: chat.members,
+		// 				desc: chat.members.filter(m => m.user_id != app.selectedUser.user_id).map(m => m.first_name + " " + m.last_name).join(", ")
+		// 			};
+		// 		});
+
+		// 		app.canSelectChat = true;
+		// 	});
+		// },
 
 		generateEnvelope: function(rcv_id, callback) {
 			var iv = getRandomIV();

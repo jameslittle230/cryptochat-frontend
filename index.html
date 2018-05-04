@@ -37,22 +37,9 @@
 	</head>
 	<body>
 		<div id="app">
-			<div v-if="connectionWarning"><strong>Warning: Cannot connect to Socket.io server!</strong></div>
+			<login-form v-if="uiState == 'login'"></login-form>
 
-			<div id="loginFlow">
-				<span>Who are you?</span><br>
-				<select v-model="selectedUser.user_id" id="selectedUser">
-					<option 
-						v-for="user in users" 
-						v-bind:value="user.user_id" 
-						v-bind:disabled="isUserSelected">
-							{{ user.first_name + " " + user.last_name }}
-					</option>
-				</select>
-				<button v-on:click="selectUser" v-bind:disabled="isUserSelected">Log In</button>
-			</div>
-
-			<div class="chatSelectFlow" v-if="canSelectChat">
+			<div class="chatSelectFlow">
 				<hr>
 				<span>Who do you want to chat with?</span><br>
 				<select v-model="selectedChat" id="selectedChat">
