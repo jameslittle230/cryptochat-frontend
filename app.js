@@ -1,4 +1,6 @@
 global.axios = require('axios');
+global.Vue = require('vue/dist/vue.js')
+
 var CryptoJS = require('crypto-js');
 var NodeRSA = require('node-rsa');
 var Moment = require('moment')
@@ -7,7 +9,7 @@ try { io } catch(e) {
 	app.connectionWarning = true;
 }
 
-var socket;
+global.socket;
 
 if(window.location.hostname == "localhost" || window.location.hostname == "127.0.0.1") {
 	socket = io('http://localhost:8080/');
@@ -17,6 +19,10 @@ if(window.location.hostname == "localhost" || window.location.hostname == "127.0
 	axios.defaults.baseURL = 'http://penguinegg.com:8080/';
 }
 
+socket.on('connect', () => {
+  axios.defaults.headers.common['socket_id'] = socket.id;
+});
+
 socket.on('msg', function(msg){
 	app.recieveMessage(msg);
 });
@@ -24,6 +30,48 @@ socket.on('msg', function(msg){
 socket.on('log', function(log) {
 	console.log("Server Log: " + log);
 });
+
+socket.on('key-request', function() {
+	console.log("key request");
+	if(!app.password || !app.currentUser) {
+		socket.emit('key-response', {
+			error: true,
+			reason: "App password not set"
+		});
+
+		return;
+	}
+
+	var key = new NodeRSA();
+	key.generateKeyPair(1024);
+	var public = key.exportKey('public');
+	var private = key.exportKey('private');
+
+	private = CryptoJS.AES.decrypt(
+		key.private, app.password
+	);
+
+	var output = {
+		"public": public,
+		"private": private,
+	};
+
+	socket.emit('key-response', {
+		"user_id": app.currentUser.id,
+		"key": output
+	})
+});
+
+socket.on('key-response', function(data) {
+	console.log("Client got key response");
+	if(data.success) {
+		app.loadDataAfterLogin()
+		.then(app.decryptLoadedKeys)
+		.then(function() {
+			app.uiState = "chat";
+		})
+	}
+})
 
 function getRandomIV() {return "3bbdce68b2736ed96972d56865ad82a2";}
 function getRandomKE() {return "a891f95cc50bd872e8fcd96cf5030535e273c5210570b3dcfa7946873d167c57";}
@@ -61,39 +109,60 @@ var app = new Vue({
 	},
 
 	methods: {
-		processSuccessfulLoginWithCredentials(username, password) {
-			console.log("Login successful with creds", username, password);
+		processSuccessfulLoginWithCredentials(user, password) {
+			console.log("Login successful with creds", user.username, password);
 			this.password = password;
-			this.currentUser = this.users.filter(u => u.username == username)[0];
-			// @TODO check for error here
-			this.uiState = "chat";
+			this.currentUser = user;
+
+			var key = new NodeRSA();
+			key.generateKeyPair(1024);
+			var public = key.exportKey('public');
+			var private = key.exportKey('private');
+
+			private = CryptoJS.AES.encrypt(
+				private, this.password
+			);
+
+			private = CryptoJS.enc.Base64.parse(private.toString()).toString(CryptoJS.enc.hex);
+
+			var output = {
+				"public": public,
+				"private": private,
+			};
+
+			socket.emit('key-submit', {
+				"socket_id": socket.id,
+				"user_id": this.currentUser.user_id,
+				"key": output
+			});
 		},
 
-		// selectUser: function() {
-		// 	this.isUserSelected = true;
+		loadDataAfterLogin() {
+			return axios.get('loadUserData')
+			.then(function (response) {
+				app.keys = response.data.keys;
+				app.chats = response.data.chats;
+				app.messages = response.data.messages;
+			});
+		},
 
-		// 	socket.emit('login', this.selectedUser.user_id);
+		decryptLoadedKeys() {
+			return new Promise((resolve, reject) => {
+				app.keys.map(key => {
+					if(key.user_id == app.currentUser.user_id) {
+						let ciphertext = CryptoJS.enc.Hex.parse(key.private_key_enc).toString(CryptoJS.enc.Base64);
+						var cipherobj = CryptoJS.AES.decrypt(
+							ciphertext, this.password
+						);
 
-		// 	this.getPrivateKey(this.selectedUser.user_id, function() {
-		// 		app.getMessagesFromDatabase();
-		// 	});
-
-		// 	axios.get('chats?user_id=' + this.selectedUser.user_id)
-		// 	.then(function(response) {
-		// 		var chats = response.data;
-
-		// 		chats.forEach(function(chat) {
-		// 			app.chats[chat.chat_id] = {
-		// 				chat_id: chat.chat_id,
-		// 				seqnum: chat.sequence_number,
-		// 				members: chat.members,
-		// 				desc: chat.members.filter(m => m.user_id != app.selectedUser.user_id).map(m => m.first_name + " " + m.last_name).join(", ")
-		// 			};
-		// 		});
-
-		// 		app.canSelectChat = true;
-		// 	});
-		// },
+						var private = cipherobj.toString(CryptoJS.enc.Utf8);
+						key.private_key = private
+					}
+					return key;
+				});
+				resolve();
+			});
+		},
 
 		generateEnvelope: function(rcv_id, callback) {
 			var iv = getRandomIV();
@@ -195,42 +264,6 @@ var app = new Vue({
 			msg = this.parseMessage(msg);
 			this.messages.push(msg)
 		},
-
-		getMessagesFromDatabase: function() {
-			axios.get('messages?recipient=' + this.selectedUser.user_id)
-			.then(function (response) {
-				response.data.forEach(function(r) {
-					var msg = app.parseMessage(r.content)
-					app.messages.push(msg);
-				})
-			})
-		},
-
-		getUsersFromDatabase: function() {
-			axios.get('users')
-			.then(function(response) {
-				app.users = response.data
-			});
-		},
-
-		getPublicKey: function(user_id, callback) {
-			axios.get('publicKey?user_id=' + user_id)
-			.then(function(response) {
-				callback(response.data);
-			});
-		},
-
-		getPrivateKey: function(user_id, callback) {
-			axios.get('privateKey?user_id=' + user_id)
-			.then(function(response) {
-				app.selectedUser.private_key = response.data;
-				callback(response.data);
-			});
-		}
-	},
-
-	mounted: function () {
-		this.getUsersFromDatabase();
 	},
 
 	filters: {

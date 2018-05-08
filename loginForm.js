@@ -24,9 +24,10 @@ Vue.component('login-form', {
 				"password": this.password
 			}
 		}).then(function(response) {
-			if(response.data == true) {
+			if(response.data.success) {
+				console.log(response.data);
 				me.didSubmitIncorrectCreds = false;
-				me.$root.processSuccessfulLoginWithCredentials(me.username, me.password);
+				me.$root.processSuccessfulLoginWithCredentials(response.data.user, me.password);
 			} else {
 				me.username = "";
 				me.password = "";
