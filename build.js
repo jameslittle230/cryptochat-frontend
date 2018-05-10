@@ -70,6 +70,7 @@ global.app = new Vue({
 
 		// Other cache data
 		messages: [],
+		decryptedMessages: [],
 		users: [],
 	},
 
@@ -147,7 +148,7 @@ global.app = new Vue({
 
 		decryptMessages() {
 			return new Promise((resolve, reject) => {
-				app.messages = app.messages.map(m => app.parseMessage(m.content))
+				app.decryptedMessages = app.messages.map(m => app.parseMessage(m.content))
 				console.log("Messages decrypted")
 				resolve();
 			});
@@ -157,7 +158,7 @@ global.app = new Vue({
 			var iv = getRandomIV();
 			var ke = getRandomKE();
 			var payload = this.messageDrafts[this.selectedChat];
-			var seqnum = this.chats[this.selectedChat].seqnum;
+			var seqnum = this.chats[this.selectedChat].sequence_number;
 			var snd = this.currentUser.user_id;
 			var rcv = rcv_id;
 			var cht = this.selectedChat;
@@ -247,8 +248,8 @@ global.app = new Vue({
 				var envelope = app.generateEnvelope(member.user_id)
 				console.log(envelope);
 				socket.emit('msg', envelope);
-				app.messageDrafts[app.selectedChat] = "";
 			});
+			app.messageDrafts[app.selectedChat] = "";
 		},
 
 		recieveMessage: function(msg) {
@@ -269,7 +270,7 @@ global.app = new Vue({
 			keys = this.keys.filter((key) => {
 				let validDate = Moment.unix(timestamp).isBetween(
 					Moment.utc(key.created_at), 
-					Moment.utc(key.expired_at)
+					key.expired_at ? Moment.utc(key.expired_at) : Moment.utc(Date.now())
 				);
 				let validUser = key.user_id == app.currentUser.user_id;
 				return validDate && validUser;
@@ -279,6 +280,13 @@ global.app = new Vue({
 				return null;
 			}
 			return keys[0].private_key;
+		},
+
+		resetDatabase() {
+			return axios.get('resetDatabase')
+			.then(function (response) {
+				location.reload();
+			});
 		}
 	},
 

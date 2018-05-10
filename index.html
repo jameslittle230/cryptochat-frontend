@@ -45,7 +45,7 @@
 				</div>
 
 				<div class="messages">
-					<message v-for="message in messages" :key="message.message_id"
+					<message v-for="message in decryptedMessages"
 						v-bind:message="message"
 						v-bind:class="{me: message.snd == currentUser.user_id}"></message>
 				</div>
@@ -58,6 +58,7 @@
 					<button v-on:click="sendMessage">Send</button>
 				</div>
 			</div>
+			<button v-on:click="resetDatabase">Reset Everything!</button>
 		</div>
 
 		<script>
