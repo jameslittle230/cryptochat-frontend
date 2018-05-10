@@ -36,6 +36,7 @@ socket.on('key-response', function(data) {
 		.then(app.decryptMessages)
 		.then(function() {
 			app.uiState = "chat";
+			Vue.nextTick(app.scrollChatWindow);
 		})
 		.catch(alert)
 	}
@@ -72,7 +73,7 @@ global.app = new Vue({
 
 		// Chats
 		chats: [],
-		selectedChat: 0,
+		selectedChat: null,
 
 		// Drafts
 		messageDrafts: {},
@@ -176,7 +177,7 @@ global.app = new Vue({
 			var iv = getRandomIV();
 			var ke = getRandomKE();
 			var payload = this.messageDrafts[this.selectedChat];
-			var seqnum = this.chats[this.selectedChat].sequence_number;
+			var seqnum = this.chats.filter(c => c.chat_id == this.selectedChat)[0].sequence_number;
 			var snd = this.currentUser.user_id;
 			var rcv = rcv_id;
 			var cht = this.selectedChat;
@@ -262,7 +263,8 @@ global.app = new Vue({
 		},
 
 		sendMessage: function(e) {
-			this.chats[this.selectedChat].members.forEach(function(member) {
+			e.preventDefault();
+			this.chats.filter(c => c.chat_id == this.selectedChat)[0].members.forEach(function(member) {
 				var envelope = app.generateEnvelope(member.user_id)
 				console.log(envelope);
 				socket.emit('msg', envelope);
@@ -273,6 +275,7 @@ global.app = new Vue({
 		recieveMessage: function(msg) {
 			msg = this.parseMessage(msg);
 			this.decryptedMessages.push(msg)
+			Vue.nextTick(app.scrollChatWindow);
 		},
 
 		currentPublicKeyForUser(user_id) {
@@ -298,70 +301,36 @@ global.app = new Vue({
 				return null;
 			}
 			return keys[0].private_key;
-		}
-	},
-
-	filters: {
-		timeago: function (value) {
-			if (!value) return ''
-			return Moment(value).fromNow();
 		},
 
-		fullName: function(id) {
-			if(!id) return '';
-			user = app.users.filter(u => u.user_id == id)[0];
-			return user.first_name + " " + user.last_name;
+		scrollChatWindow() {
+			console.log("scroll scroll");
+			var element = document.getElementById('messageList');
+			element.scrollTop = element.scrollHeight
 		}
-	}
+	},
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./chatSelect.js":2,"./loginForm.js":3,"./message.js":4,"axios":11,"crypto-js":44,"moment":71,"node-rsa":72,"vue/dist/vue.js":88}],2:[function(require,module,exports){
 Vue.component('chat-select', {
+  props: ['chat'],
   data: function () {
     return {
-      username: "",
-      password: "",
-      didSubmitIncorrectCreds: false,
+      app: app,
     }
   },
 
   methods: {
-  	startLogin: function() {
-  		if(this.username == "") {
-  			this.didSubmitIncorrectCreds = true;
-  			return;
-  		}
-
-  		var me = this;
-
-  		axios({
-			method: 'post',
-			url: 'login',
-			data: {
-				"username": this.username,
-				"password": this.password
-			}
-		}).then(function(response) {
-			if(response.data.success) {
-				console.log(response.data);
-				me.didSubmitIncorrectCreds = false;
-				me.$root.processSuccessfulLoginWithCredentials(response.data.user, me.password);
-			} else {
-				me.username = "";
-				me.password = "";
-				me.didSubmitIncorrectCreds = true;
-			}
-		})
-  	},
-
-  	goToRegistration: function() {
-  		console.log("let's register");
-  	}
+    selectChat() {
+      app.selectedChat = this.chat.chat_id
+    }
   },
 
   template: 
-  `<div class="">Chat Select</div>`
+  `<div class="chat-select" v-on:click="selectChat">
+    {{ chat.members.filter(m => m.user_id != app.currentUser.user_id).map(m => m.first_name + " " + m.last_name).join(", ") }}
+  </div>`
 })
 },{}],3:[function(require,module,exports){
 Vue.component('login-form', {
@@ -428,8 +397,24 @@ Vue.component('message', {
     }
   },
 
+  filters: {
+    timeago: function (value) {
+      if (!value) return ''
+      return Moment(value).fromNow();
+    },
+
+    fullName: function(id) {
+      if(!id) return '';
+      console.log(id);
+      var user = app.users.filter(u => u.user_id == id)[0];
+      return user.first_name + " " + user.last_name;
+    }
+  },
+
   template: 
-  `<div class="">{{message.content}}</div>`
+  `<div class="message">
+    <div>{{message.content}}</div>
+    </div>`
 })
 },{}],5:[function(require,module,exports){
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.

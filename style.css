@@ -1,0 +1,65 @@
+body {
+	font-family: sans-serif;
+}
+
+.chat-ui {
+	display: grid;
+	height: 100vh;
+	width: 100vw;
+	grid-template-columns: 300px auto;
+	grid-template-rows: auto 200px;
+}
+
+.chats {
+	background: #eee;
+	grid-column-start: 1;
+	grid-column-end: 2;
+	grid-row-start: 1;
+	grid-row-end: 3;
+}
+
+.chat-select {
+	padding: 12px;
+	border-bottom: 1px solid #aaa;
+}
+
+.chat-select.selected {
+	background-color: #ddd;
+}
+
+.messages {
+	grid-column-start: 2;
+	grid-column-end: 3;
+	grid-row-start: 1;
+	grid-row-end: 2;
+
+	padding: 12px;
+	overflow-y: scroll;
+}
+
+.compose {
+	grid-column-start: 2;
+	grid-column-end: 3;
+	grid-row-start: 2;
+	grid-row-end: 3;
+
+	display: flex;
+}
+
+.compose textarea {
+	width: 100%;
+}
+
+.message {
+	width: 70%;
+	background: #eee;
+	padding: 18px;
+	border-radius: 12px;
+	margin-bottom: 1em;
+}
+
+.message.me {
+	margin-left: auto;
+	background: #1E8BC3;
+	color: white;
+}

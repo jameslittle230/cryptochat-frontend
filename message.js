@@ -8,6 +8,22 @@ Vue.component('message', {
     }
   },
 
+  filters: {
+    timeago: function (value) {
+      if (!value) return ''
+      return Moment(value).fromNow();
+    },
+
+    fullName: function(id) {
+      if(!id) return '';
+      console.log(id);
+      var user = app.users.filter(u => u.user_id == id)[0];
+      return user.first_name + " " + user.last_name;
+    }
+  },
+
   template: 
-  `<div class="">{{message.content}}</div>`
+  `<div class="message">
+    <div>{{message.content}}</div>
+    </div>`
 })

@@ -4,57 +4,34 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 		<title>CryptoChat: Secure Online Messaging</title>
-
-		<style>
-			ul, textarea {
-				width: 600px;
-				min-height: 300px;
-				padding: 0;
-			}
-
-			li {
-				width: 600px;
-				overflow-wrap: break-word;
-				word-wrap: break-word;
-				word-break: break-word;
-				text-align: right;
-				list-style-type: none;
-				padding-bottom: 4px;
-				margin-bottom: 4px;
-				border-bottom: 1px dotted #ccc;
-			}
-
-			.me {
-				font-weight: bold;
-				text-align: left;
-			}
-
-			label {
-				display: inline-block;
-				width: 100px;
-			}
-		</style>
+		<link rel="stylesheet" href="/normalize.css">
+		<link rel="stylesheet" href="/style.css">
 	</head>
 	<body>
 		<div id="app">
 			<login-form v-if="uiState == 'login'"></login-form>
 
-			<div v-if="uiState == 'chat'">
+			<div class="chat-ui" v-if="uiState == 'chat'">
 				<div class="chats">
-					<chat-select v-for="chat in chats" :key="chat.chat_id"></chat-select>
+					<chat-select v-for="chat in chats" :key="chat.chat_id"
+						v-bind:chat="chat"
+						v-bind:class="{selected: selectedChat == chat.chat_id}"
+						v-on:click="console.log(chat.chat_id)"></chat-select>
 				</div>
 
-				<div class="messages">
-					<message v-for="message in decryptedMessages"
+				<div v-if="!selectedChat">Select a chat to the left to begin.</div>
+
+				<div class="messages" id="messageList">
+					<message v-for="message in decryptedMessages" :key="message.timestamp"
+						v-if="message.cht == selectedChat"
 						v-bind:message="message"
 						v-bind:class="{me: message.snd == currentUser.user_id}"></message>
 				</div>
 
-				<div class="compose">
+				<div class="compose" v-if="selectedChat">
 					<textarea id="composeWindow" autocomplete="off"
 						v-model="messageDrafts[selectedChat]"
-						v-on:keydown.enter="sendMessage"
-						v-on:keydown.option.enter=""></textarea>
+						v-on:keydown.enter="sendMessage"></textarea>
 					<button v-on:click="sendMessage">Send</button>
 				</div>
 			</div>

@@ -1,46 +1,19 @@
 Vue.component('chat-select', {
+  props: ['chat'],
   data: function () {
     return {
-      username: "",
-      password: "",
-      didSubmitIncorrectCreds: false,
+      app: app,
     }
   },
 
   methods: {
-  	startLogin: function() {
-  		if(this.username == "") {
-  			this.didSubmitIncorrectCreds = true;
-  			return;
-  		}
-
-  		var me = this;
-
-  		axios({
-			method: 'post',
-			url: 'login',
-			data: {
-				"username": this.username,
-				"password": this.password
-			}
-		}).then(function(response) {
-			if(response.data.success) {
-				console.log(response.data);
-				me.didSubmitIncorrectCreds = false;
-				me.$root.processSuccessfulLoginWithCredentials(response.data.user, me.password);
-			} else {
-				me.username = "";
-				me.password = "";
-				me.didSubmitIncorrectCreds = true;
-			}
-		})
-  	},
-
-  	goToRegistration: function() {
-  		console.log("let's register");
-  	}
+    selectChat() {
+      app.selectedChat = this.chat.chat_id
+    }
   },
 
   template: 
-  `<div class="">Chat Select</div>`
+  `<div class="chat-select" v-on:click="selectChat">
+    {{ chat.members.filter(m => m.user_id != app.currentUser.user_id).map(m => m.first_name + " " + m.last_name).join(", ") }}
+  </div>`
 })
