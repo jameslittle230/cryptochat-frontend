@@ -37,7 +37,16 @@ socket.on('key-response', function(data) {
 		})
 		.catch(alert)
 	}
-})
+});
+
+socket.on('key-reload', function(data) {
+	console.log("New user login, refreshing keys");
+	if(data.success) {
+		app.refreshKeys()
+		.then(app.decryptLoadedKeys)
+		.catch(alert)
+	}
+});
 
 var publicKey = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCZOREAzNdcbciCWnG+L4B5Fh1ApyL1/LyKN45IkkPb+8oVb4lMSC2UF1UyYGz2E/JT5HAqoFz2n1XXftgTL7lJl6dz9U6wAYPToMmRppQSBeEaubqKgg5/JcBdapAKQO9PYfcfTHic0AnDQM4JLbeS9ejdhMXmrOeTwU+JNEUBZwIDAQAB"
 var privatekey = "MIICWwIBAAKBgQCZOREAzNdcbciCWnG+L4B5Fh1ApyL1/LyKN45IkkPb+8oVb4lMSC2UF1UyYGz2E/JT5HAqoFz2n1XXftgTL7lJl6dz9U6wAYPToMmRppQSBeEaubqKgg5/JcBdapAKQO9PYfcfTHic0AnDQM4JLbeS9ejdhMXmrOeTwU+JNEUBZwIDAQABAoGAcsNyf9XtrLYxy6jwrtGneYpdyLInFnYBxcjM0oBzQU67UwjinnclZFmBn6Tnl/zisYFVnifU2YgIZMsGDoDdVx9b9/D+0ZMgw16nDOhLXvu/5T6kp4uIrWhudaH5+5krtFk10MpLGB28eZhwHnNuUlsfOOBk4T5KQoxdDFp84PECQQDTzW5F2DRM5pvPNz8IPGvrRGH9XsmClWPNTJJet82eof5knT4WKR/mC1PqcFzxSkH2ipTxGJqII3w8RcptBhz5AkEAuTJLKwijF1oxzE/7abF0It5YSv2CLJ7C1lfsMSa2b1T9j+NFDqI1tMehrNtVl7HZ0RiDoC3a0NcCI6KkQDeJXwJALLLzLcxWJVCZ2152b/+Iawtwfq9taaCrgl1BmrnBrFPVw1goDTc6oysK17RE+StJxoUyr7sYidirVHEKKn4ayQJAKBfHRi28gRW5qi22lA8iwVm5a6KuR9KnA5hNPebPoBKaQkhFbwGW9ugxDCb/xLNwIGBaPpcuw/+IKwbO4EglqQJAD2QtgBufaF/fXPIu4/Zb7J8zAil2bZC5tMzPp/DSarUkhl9AC7XfTMFxD0BegYXvkKbP3Mzwk1ZieOTyZ+UWVA=="
@@ -120,6 +129,15 @@ global.app = new Vue({
 				app.messages = response.data.messages;
 				console.log("Data loaded");
 			});
+		},
+
+		refreshKeys() {
+			return axios.get('loadUserData?keysonly=true&user_id=' + this.currentUser.user_id)
+			.then(function(response) {
+				console.log(response.data);
+				app.keys = response.data.keys;
+				console.log("Keys reloaded")
+			})
 		},
 
 		decryptLoadedKeys() {
@@ -252,7 +270,7 @@ global.app = new Vue({
 
 		recieveMessage: function(msg) {
 			msg = this.parseMessage(msg);
-			this.messages.push(msg)
+			this.decryptedMessages.push(msg)
 		},
 
 		currentPublicKeyForUser(user_id) {
@@ -278,13 +296,6 @@ global.app = new Vue({
 				return null;
 			}
 			return keys[0].private_key;
-		},
-
-		resetDatabase() {
-			return axios.get('resetDatabase')
-			.then(function (response) {
-				location.reload();
-			});
 		}
 	},
 
