@@ -1,9 +1,8 @@
 global.axios = require('axios');
 global.Vue = require('vue/dist/vue.js')
-
-var CryptoJS = require('crypto-js');
-var NodeRSA = require('node-rsa');
-var Moment = require('moment')
+global.CryptoJS = require('crypto-js');
+global.NodeRSA = require('node-rsa');
+global.Moment = require('moment')
 
 try { io } catch(e) {
 	app.connectionWarning = true;
@@ -27,58 +26,30 @@ socket.on('msg', function(msg){
 	app.recieveMessage(msg);
 });
 
-socket.on('log', function(log) {
-	console.log("Server Log: " + log);
-});
-
-socket.on('key-request', function() {
-	console.log("key request");
-	if(!app.password || !app.currentUser) {
-		socket.emit('key-response', {
-			error: true,
-			reason: "App password not set"
-		});
-
-		return;
-	}
-
-	var key = new NodeRSA();
-	key.generateKeyPair(1024);
-	var public = key.exportKey('public');
-	var private = key.exportKey('private');
-
-	private = CryptoJS.AES.decrypt(
-		key.private, app.password
-	);
-
-	var output = {
-		"public": public,
-		"private": private,
-	};
-
-	socket.emit('key-response', {
-		"user_id": app.currentUser.id,
-		"key": output
-	})
-});
-
 socket.on('key-response', function(data) {
-	console.log("Client got key response");
+	console.log("Key has been recieved by server");
 	if(data.success) {
 		app.loadDataAfterLogin()
 		.then(app.decryptLoadedKeys)
+		.then(app.decryptMessages)
 		.then(function() {
 			app.uiState = "chat";
 		})
+		.catch(alert)
 	}
 })
+
+var publicKey = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCZOREAzNdcbciCWnG+L4B5Fh1ApyL1/LyKN45IkkPb+8oVb4lMSC2UF1UyYGz2E/JT5HAqoFz2n1XXftgTL7lJl6dz9U6wAYPToMmRppQSBeEaubqKgg5/JcBdapAKQO9PYfcfTHic0AnDQM4JLbeS9ejdhMXmrOeTwU+JNEUBZwIDAQAB"
+var privatekey = "MIICWwIBAAKBgQCZOREAzNdcbciCWnG+L4B5Fh1ApyL1/LyKN45IkkPb+8oVb4lMSC2UF1UyYGz2E/JT5HAqoFz2n1XXftgTL7lJl6dz9U6wAYPToMmRppQSBeEaubqKgg5/JcBdapAKQO9PYfcfTHic0AnDQM4JLbeS9ejdhMXmrOeTwU+JNEUBZwIDAQABAoGAcsNyf9XtrLYxy6jwrtGneYpdyLInFnYBxcjM0oBzQU67UwjinnclZFmBn6Tnl/zisYFVnifU2YgIZMsGDoDdVx9b9/D+0ZMgw16nDOhLXvu/5T6kp4uIrWhudaH5+5krtFk10MpLGB28eZhwHnNuUlsfOOBk4T5KQoxdDFp84PECQQDTzW5F2DRM5pvPNz8IPGvrRGH9XsmClWPNTJJet82eof5knT4WKR/mC1PqcFzxSkH2ipTxGJqII3w8RcptBhz5AkEAuTJLKwijF1oxzE/7abF0It5YSv2CLJ7C1lfsMSa2b1T9j+NFDqI1tMehrNtVl7HZ0RiDoC3a0NcCI6KkQDeJXwJALLLzLcxWJVCZ2152b/+Iawtwfq9taaCrgl1BmrnBrFPVw1goDTc6oysK17RE+StJxoUyr7sYidirVHEKKn4ayQJAKBfHRi28gRW5qi22lA8iwVm5a6KuR9KnA5hNPebPoBKaQkhFbwGW9ugxDCb/xLNwIGBaPpcuw/+IKwbO4EglqQJAD2QtgBufaF/fXPIu4/Zb7J8zAil2bZC5tMzPp/DSarUkhl9AC7XfTMFxD0BegYXvkKbP3Mzwk1ZieOTyZ+UWVA=="
 
 function getRandomIV() {return "3bbdce68b2736ed96972d56865ad82a2";}
 function getRandomKE() {return "a891f95cc50bd872e8fcd96cf5030535e273c5210570b3dcfa7946873d167c57";}
 
 require('./loginForm.js');
+require('./chatSelect.js');
+require('./message.js');
 
-var app = new Vue({
+global.app = new Vue({
 	el: '#app',
 	data: {
 		uiState: "login", // login, register, chat
@@ -90,12 +61,10 @@ var app = new Vue({
 
 		// Chats
 		chats: [],
-		selectedChat: null,
+		selectedChat: 0,
 
 		// Drafts
-		messageDraftData: {
-			payload: "",
-		},
+		messageDrafts: {},
 
 		// Other cache data
 		messages: [],
@@ -105,14 +74,19 @@ var app = new Vue({
 	computed: {
 		canUseChatInterface: function() {
 			return this.selectedChat != null;
+		},
+
+		currentSenderPrivateKey: function() {
+			return this.keys.filter((key) => {return key.user_id == app.currentUser.user_id && key.expired_at == null})[0].private_key;
 		}
 	},
 
 	methods: {
 		processSuccessfulLoginWithCredentials(user, password) {
-			console.log("Login successful with creds", user.username, password);
 			this.password = password;
 			this.currentUser = user;
+
+			console.log("Generating new login key");
 
 			var key = new NodeRSA();
 			key.generateKeyPair(1024);
@@ -138,11 +112,12 @@ var app = new Vue({
 		},
 
 		loadDataAfterLogin() {
-			return axios.get('loadUserData')
+			return axios.get('loadUserData?user_id=' + this.currentUser.user_id)
 			.then(function (response) {
 				app.keys = response.data.keys;
 				app.chats = response.data.chats;
 				app.messages = response.data.messages;
+				console.log("Data loaded");
 			});
 		},
 
@@ -159,7 +134,19 @@ var app = new Vue({
 						key.private_key = private
 					}
 					return key;
+
+					// key.private_key = key.private_key_enc;
+					// return key;
 				});
+				console.log("Keys decrypted");
+				resolve();
+			});
+		},
+
+		decryptMessages() {
+			return new Promise((resolve, reject) => {
+				app.messages = app.messages.map(m => app.parseMessage(m.content))
+				console.log("Messages decrypted")
 				resolve();
 			});
 		},
@@ -167,19 +154,19 @@ var app = new Vue({
 		generateEnvelope: function(rcv_id, callback) {
 			var iv = getRandomIV();
 			var ke = getRandomKE();
-			var payload = this.messageDraftData.payload;
+			var payload = this.messageDrafts[this.selectedChat];
 			var seqnum = this.chats[this.selectedChat].seqnum;
-			var snd = this.selectedUser.user_id;
+			var snd = this.currentUser.user_id;
 			var rcv = rcv_id;
 			var cht = this.selectedChat;
-			var snd_privkey_pem = this.selectedUser.private_key;
+			var snd_privkey_pem = this.currentSenderPrivateKey;
 
 			var ciphertext = CryptoJS.AES.encrypt(
 				payload, ke, {iv: iv}
 			);
 
 			ciphertext = ciphertext.toString();
-			ciphertext = CryptoJS.enc.Base64.parse(ciphertext).toString(CryptoJS.enc.hex)
+			ciphertext = CryptoJS.enc.Base64.parse(ciphertext).toString(CryptoJS.enc.hex);
 
 			var header = CryptoJS.enc.Hex.parse([
 				"0001",
@@ -189,22 +176,23 @@ var app = new Vue({
 				("0000" + parseInt(snd).toString(16)).substr(-4),
 				("0000" + parseInt(rcv).toString(16)).substr(-4),
 				("0000" + parseInt(cht).toString(16)).substr(-4),
-				("000000000000" + Date.now().toString(16)).substr(-12)
+				("00000000" + ((Math.floor(Date.now()/1000)).toString(16))).substr(-8)
 			].join(""));
 
-			this.getPublicKey(rcv, function(rcv_pubkey_pem) {
-				var rcv_pubkey = new NodeRSA();
-				rcv_pubkey.importKey(rcv_pubkey_pem, 'public');
-				ke = rcv_pubkey.encrypt(ke, 'hex', 'hex');
+			var rcv_pubkey_pem = this.currentPublicKeyForUser(rcv);
+			var rcv_pubkey = new NodeRSA();
+			rcv_pubkey.importKey(rcv_pubkey_pem, 'public');
+			ke = rcv_pubkey.encrypt(ke, 'hex', 'hex');
 
-				var snd_privkey = new NodeRSA();
-				snd_privkey.importKey(snd_privkey_pem, 'private');
-				var sigData = header + iv + ciphertext + ke;
-				var sig = snd_privkey.sign(sigData, 'hex', 'hex');
+			console.log()
 
-				var envelope = header + iv + ciphertext + ke + sig;
-				callback(envelope);
-			});
+			var snd_privkey = new NodeRSA();
+			snd_privkey.importKey(snd_privkey_pem, 'private');
+			var sigData = header + iv + ciphertext + ke;
+			var sig = snd_privkey.sign(sigData, 'hex', 'hex');
+
+			var envelope = header + iv + ciphertext + ke + sig;
+			return envelope;
 		},
 
 		parseMessage: function(msg) {
@@ -218,17 +206,18 @@ var app = new Vue({
 				snd = parseInt(msg.substring(22, 26), 16);
 				rcv = parseInt(msg.substring(26, 30), 16);
 				cht = parseInt(msg.substring(30, 34), 16);
-				timestamp = parseInt(msg.substring(34, 46), 16);
+				timestamp = parseInt(msg.substring(34, 42), 16);
 
-				iv = msg.substring(46, 78);
+				iv = msg.substring(42, 74);
 
-				payload_endindex = 78 + len;
-				payload = msg.substring(78, payload_endindex);
+				payload_endindex = 74 + len;
+				payload = msg.substring(74, payload_endindex);
 				ke = msg.substring(payload_endindex, payload_endindex+256);
 				sig = msg.substring(payload_endindex+64, payload_endindex+256+256);
 
 				var rcv_privkey = new NodeRSA();
-				rcv_privkey.importKey(this.selectedUser.private_key, "private");
+				var rcv_privkey_pem = this.privateKeyForTimestamp(timestamp);
+				rcv_privkey.importKey(rcv_privkey_pem, "private");
 				ke = CryptoJS.enc.Hex.parse(ke).toString(CryptoJS.enc.Base64);
 				ke = rcv_privkey.decrypt(ke, 'hex');
 
@@ -253,10 +242,10 @@ var app = new Vue({
 
 		sendMessage: function(e) {
 			this.chats[this.selectedChat].members.forEach(function(member) {
-				var envelope = app.generateEnvelope(member.user_id, function(envelope) {
-					socket.emit('msg', envelope);
-					app.messageDraftData.payload = "";
-				});
+				var envelope = app.generateEnvelope(member.user_id)
+				console.log(envelope);
+				socket.emit('msg', envelope);
+				app.messageDrafts[app.selectedChat] = "";
 			});
 		},
 
@@ -264,6 +253,31 @@ var app = new Vue({
 			msg = this.parseMessage(msg);
 			this.messages.push(msg)
 		},
+
+		currentPublicKeyForUser(user_id) {
+			keys = this.keys.filter((key) => {return key.user_id == user_id && key.expired_at == null});
+			if(keys.length == 0) {
+				return null;
+			}
+			return keys[0].public_key;
+		},
+
+		privateKeyForTimestamp(timestamp) {
+
+			keys = this.keys.filter((key) => {
+				let validDate = Moment.unix(timestamp).isBetween(
+					Moment.utc(key.created_at), 
+					Moment.utc(key.expired_at)
+				);
+				let validUser = key.user_id == app.currentUser.user_id;
+				return validDate && validUser;
+			});
+
+			if(keys.length == 0 || !keys[0].private_key) {
+				return null;
+			}
+			return keys[0].private_key;
+		}
 	},
 
 	filters: {

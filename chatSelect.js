@@ -1,4 +1,4 @@
-Vue.component('login-form', {
+Vue.component('chat-select', {
   data: function () {
     return {
       username: "",
@@ -27,7 +27,7 @@ Vue.component('login-form', {
 			if(response.data.success) {
 				console.log(response.data);
 				me.didSubmitIncorrectCreds = false;
-				app.processSuccessfulLoginWithCredentials(response.data.user, me.password);
+				me.$root.processSuccessfulLoginWithCredentials(response.data.user, me.password);
 			} else {
 				me.username = "";
 				me.password = "";
@@ -42,12 +42,5 @@ Vue.component('login-form', {
   },
 
   template: 
-  `<div class="login-form">
-  	<h2>welcome.</h2>
-  	<p v-if="didSubmitIncorrectCreds">your credentials were incorrect. please try again.</p>
-  	<input placeholder="username" v-model="username"><br>
-  	<input type="password" placeholder="password" v-model="password"><br>
-  	<button @click="startLogin">log in</button><br>
-  	<p>or: <a href="#" @click.prevent.stop.once="goToRegistration">register</a></p>
-  </div>`
+  `<div class="">Chat Select</div>`
 })

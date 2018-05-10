@@ -39,35 +39,24 @@
 		<div id="app">
 			<login-form v-if="uiState == 'login'"></login-form>
 
-			<div class="chatSelectFlow">
-				<hr>
-				<span>Who do you want to chat with?</span><br>
-				<select v-model="selectedChat" id="selectedChat">
-					<option 
-						v-for="chat in chats" 
-						v-bind:value="chat.chat_id">
-							{{ chat.desc }}
-					</option>
-				</select>
+			<div v-if="uiState == 'chat'">
+				<div class="chats">
+					<chat-select v-for="chat in chats" :key="chat.chat_id"></chat-select>
+				</div>
 
-			</div>
+				<div class="messages">
+					<message v-for="message in messages" :key="message.message_id"
+						v-bind:message="message"
+						v-bind:class="{me: message.snd == currentUser.user_id}"></message>
+				</div>
 
-			<div class="chatInterface" v-if="canUseChatInterface">
-				<hr>
-			
-				<ul id="messages">
-					<li 
-					v-for="message in messages"
-					v-if="message.cht == selectedChat"
-					v-bind:class="{me: message.snd == selectedUser.user_id}">
-						{{message.content}}<br>
-						<small>{{message.timestamp | timeago}} &bullet; {{message.snd | fullName}}</small>
-					</li>
-				</ul>
-
-				<textarea id="payload" autocomplete="off" v-model="messageDraftData.payload"
-					v-on:keydown.enter="sendMessage"></textarea><br>
-				<button v-on:click="sendMessage">Send</button>
+				<div class="compose">
+					<textarea id="composeWindow" autocomplete="off"
+						v-model="messageDrafts[selectedChat]"
+						v-on:keydown.enter="sendMessage"
+						v-on:keydown.option.enter=""></textarea>
+					<button v-on:click="sendMessage">Send</button>
+				</div>
 			</div>
 		</div>
 
