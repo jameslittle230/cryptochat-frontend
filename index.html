@@ -20,8 +20,6 @@
 						v-on:click="console.log(chat.chat_id)"></chat-select>
 				</div>
 
-				<div v-if="!selectedChat">Select a chat to the left to begin.</div>
-
 				<div class="messages" id="messageList">
 					<message v-for="message in decryptedMessages" :key="message.timestamp"
 						v-if="message.cht == selectedChat"

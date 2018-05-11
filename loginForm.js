@@ -50,10 +50,11 @@ Vue.component('login-form', {
   template: 
   `<div class="login-form">
   	<h2>Welcome to PenguinEgg.</h2>
+  	<p>By <a href="https://jameslittle.me">James Little</a></p>
   	<p v-if="didSubmitIncorrectCreds">Your credentials were incorrect. Please try again.</p>
-  	<input placeholder="Username" v-model="username"><br>
+  	<input placeholder="Username" v-model="username" autofocus><br>
   	<input type="password" placeholder="Password" v-model="password" v-on:keydown.enter="startLogin"><br>
   	<button @click="startLogin" v-bind:disabled="this.submitButtonIsDisabled">{{ submitButtonIsDisabled ? "Loading..." : "Log in" }}</button><br>
-  	<p>Or: <a href="#" @click.prevent.stop.once="goToRegistration">Register</a></p>
+  	<p>Or <a href="#" @click.prevent.stop.once="goToRegistration">register</a></p>
   </div>`
 })

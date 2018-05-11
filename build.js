@@ -37,6 +37,7 @@ socket.on('key-response', function(data) {
 		.then(app.decryptMessages)
 		.then(function() {
 			NProgress.done();
+			app.selectedChat = app.chats.length > 0 ? app.chats[0].chat_id : null;
 			app.uiState = "chat";
 			Vue.nextTick(app.scrollChatWindow);
 		})
@@ -53,8 +54,25 @@ socket.on('key-reload', function(data) {
 	}
 });
 
-function getRandomIV() {return "3bbdce68b2736ed96972d56865ad82a2";}
-function getRandomKE() {return "a891f95cc50bd872e8fcd96cf5030535e273c5210570b3dcfa7946873d167c57";}
+function getRandomValue(length) {
+	if(length > 128) {
+		return 0;
+	}
+
+	var output = "";
+
+	var array = new Uint8Array(length / 2);
+	window.crypto.getRandomValues(array);
+
+	for (var i = array.length - 1; i >= 0; i--) {
+		output += array[i].toString(16).padStart(2, "0");
+	}
+
+	return output
+}
+
+function getRandomIV() {return getRandomValue(32);}
+function getRandomKE() {return getRandomValue(64);}
 
 require('./loginForm.js');
 require('./chatSelect.js');
@@ -387,11 +405,12 @@ Vue.component('login-form', {
   template: 
   `<div class="login-form">
   	<h2>Welcome to PenguinEgg.</h2>
+  	<p>By <a href="https://jameslittle.me">James Little</a></p>
   	<p v-if="didSubmitIncorrectCreds">Your credentials were incorrect. Please try again.</p>
-  	<input placeholder="Username" v-model="username"><br>
+  	<input placeholder="Username" v-model="username" autofocus><br>
   	<input type="password" placeholder="Password" v-model="password" v-on:keydown.enter="startLogin"><br>
   	<button @click="startLogin" v-bind:disabled="this.submitButtonIsDisabled">{{ submitButtonIsDisabled ? "Loading..." : "Log in" }}</button><br>
-  	<p>Or: <a href="#" @click.prevent.stop.once="goToRegistration">Register</a></p>
+  	<p>Or <a href="#" @click.prevent.stop.once="goToRegistration">register</a></p>
   </div>`
 })
 },{}],4:[function(require,module,exports){

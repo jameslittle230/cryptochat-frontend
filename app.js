@@ -35,6 +35,7 @@ socket.on('key-response', function(data) {
 		.then(app.decryptMessages)
 		.then(function() {
 			NProgress.done();
+			app.selectedChat = app.chats.length > 0 ? app.chats[0].chat_id : null;
 			app.uiState = "chat";
 			Vue.nextTick(app.scrollChatWindow);
 		})
@@ -51,8 +52,25 @@ socket.on('key-reload', function(data) {
 	}
 });
 
-function getRandomIV() {return "3bbdce68b2736ed96972d56865ad82a2";}
-function getRandomKE() {return "a891f95cc50bd872e8fcd96cf5030535e273c5210570b3dcfa7946873d167c57";}
+function getRandomValue(length) {
+	if(length > 128) {
+		return 0;
+	}
+
+	var output = "";
+
+	var array = new Uint8Array(length / 2);
+	window.crypto.getRandomValues(array);
+
+	for (var i = array.length - 1; i >= 0; i--) {
+		output += array[i].toString(16).padStart(2, "0");
+	}
+
+	return output
+}
+
+function getRandomIV() {return getRandomValue(32);}
+function getRandomKE() {return getRandomValue(64);}
 
 require('./loginForm.js');
 require('./chatSelect.js');
