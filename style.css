@@ -6,8 +6,8 @@ body {
 	display: grid;
 	height: 100vh;
 	width: 100vw;
-	grid-template-columns: 300px auto;
-	grid-template-rows: auto 200px;
+	grid-template-columns: 20% auto;
+	grid-template-rows: auto 20%;
 }
 
 .chats {
@@ -48,6 +48,8 @@ body {
 
 .compose textarea {
 	width: 100%;
+	padding: 5px;
+	font-family: sans-serif;
 }
 
 .message {
@@ -68,4 +70,8 @@ body {
 	margin-left: auto;
 	background: #1E8BC3;
 	color: white;
+}
+
+.login-form {
+	text-align: center;
 }

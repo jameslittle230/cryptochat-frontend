@@ -4,6 +4,7 @@ Vue.component('login-form', {
       username: "",
       password: "",
       didSubmitIncorrectCreds: false,
+      submitButtonIsDisabled: false,
     }
   },
 
@@ -13,6 +14,10 @@ Vue.component('login-form', {
   			this.didSubmitIncorrectCreds = true;
   			return;
   		}
+
+		NProgress.configure({ showSpinner: false });
+		this.submitButtonIsDisabled = true;
+  		NProgress.start();
 
   		var me = this;
 
@@ -29,6 +34,7 @@ Vue.component('login-form', {
 				me.didSubmitIncorrectCreds = false;
 				app.processSuccessfulLoginWithCredentials(response.data.user, me.password);
 			} else {
+				NProgress.done();
 				me.username = "";
 				me.password = "";
 				me.didSubmitIncorrectCreds = true;
@@ -43,11 +49,11 @@ Vue.component('login-form', {
 
   template: 
   `<div class="login-form">
-  	<h2>welcome.</h2>
-  	<p v-if="didSubmitIncorrectCreds">your credentials were incorrect. please try again.</p>
-  	<input placeholder="username" v-model="username"><br>
-  	<input type="password" placeholder="password" v-model="password"><br>
-  	<button @click="startLogin">log in</button><br>
-  	<p>or: <a href="#" @click.prevent.stop.once="goToRegistration">register</a></p>
+  	<h2>Welcome to PenguinEgg.</h2>
+  	<p v-if="didSubmitIncorrectCreds">Your credentials were incorrect. Please try again.</p>
+  	<input placeholder="Username" v-model="username"><br>
+  	<input type="password" placeholder="Password" v-model="password" v-on:keydown.enter="startLogin"><br>
+  	<button @click="startLogin" v-bind:disabled="this.submitButtonIsDisabled">{{ submitButtonIsDisabled ? "Loading..." : "Log in" }}</button><br>
+  	<p>Or: <a href="#" @click.prevent.stop.once="goToRegistration">Register</a></p>
   </div>`
 })

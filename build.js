@@ -7,6 +7,7 @@ global.NodeRSA = require('node-rsa');
 global.Moment = require('moment')
 
 try { io } catch(e) {
+	console.log("Not connected to IO.")
 	app.connectionWarning = true;
 }
 
@@ -35,6 +36,7 @@ socket.on('key-response', function(data) {
 		.then(app.decryptLoadedKeys)
 		.then(app.decryptMessages)
 		.then(function() {
+			NProgress.done();
 			app.uiState = "chat";
 			Vue.nextTick(app.scrollChatWindow);
 		})
@@ -50,9 +52,6 @@ socket.on('key-reload', function(data) {
 		.catch(alert)
 	}
 });
-
-var publicKey = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCZOREAzNdcbciCWnG+L4B5Fh1ApyL1/LyKN45IkkPb+8oVb4lMSC2UF1UyYGz2E/JT5HAqoFz2n1XXftgTL7lJl6dz9U6wAYPToMmRppQSBeEaubqKgg5/JcBdapAKQO9PYfcfTHic0AnDQM4JLbeS9ejdhMXmrOeTwU+JNEUBZwIDAQAB"
-var privatekey = "MIICWwIBAAKBgQCZOREAzNdcbciCWnG+L4B5Fh1ApyL1/LyKN45IkkPb+8oVb4lMSC2UF1UyYGz2E/JT5HAqoFz2n1XXftgTL7lJl6dz9U6wAYPToMmRppQSBeEaubqKgg5/JcBdapAKQO9PYfcfTHic0AnDQM4JLbeS9ejdhMXmrOeTwU+JNEUBZwIDAQABAoGAcsNyf9XtrLYxy6jwrtGneYpdyLInFnYBxcjM0oBzQU67UwjinnclZFmBn6Tnl/zisYFVnifU2YgIZMsGDoDdVx9b9/D+0ZMgw16nDOhLXvu/5T6kp4uIrWhudaH5+5krtFk10MpLGB28eZhwHnNuUlsfOOBk4T5KQoxdDFp84PECQQDTzW5F2DRM5pvPNz8IPGvrRGH9XsmClWPNTJJet82eof5knT4WKR/mC1PqcFzxSkH2ipTxGJqII3w8RcptBhz5AkEAuTJLKwijF1oxzE/7abF0It5YSv2CLJ7C1lfsMSa2b1T9j+NFDqI1tMehrNtVl7HZ0RiDoC3a0NcCI6KkQDeJXwJALLLzLcxWJVCZ2152b/+Iawtwfq9taaCrgl1BmrnBrFPVw1goDTc6oysK17RE+StJxoUyr7sYidirVHEKKn4ayQJAKBfHRi28gRW5qi22lA8iwVm5a6KuR9KnA5hNPebPoBKaQkhFbwGW9ugxDCb/xLNwIGBaPpcuw/+IKwbO4EglqQJAD2QtgBufaF/fXPIu4/Zb7J8zAil2bZC5tMzPp/DSarUkhl9AC7XfTMFxD0BegYXvkKbP3Mzwk1ZieOTyZ+UWVA=="
 
 function getRandomIV() {return "3bbdce68b2736ed96972d56865ad82a2";}
 function getRandomKE() {return "a891f95cc50bd872e8fcd96cf5030535e273c5210570b3dcfa7946873d167c57";}
@@ -117,6 +116,8 @@ global.app = new Vue({
 				"private": private,
 			};
 
+			NProgress.set(0.4);
+
 			socket.emit('key-submit', {
 				"socket_id": socket.id,
 				"user_id": this.currentUser.user_id,
@@ -137,7 +138,6 @@ global.app = new Vue({
 		refreshKeys() {
 			return axios.get('loadUserData?keysonly=true&user_id=' + this.currentUser.user_id)
 			.then(function(response) {
-				console.log(response.data);
 				app.keys = response.data.keys;
 				console.log("Keys reloaded")
 			})
@@ -206,8 +206,6 @@ global.app = new Vue({
 			rcv_pubkey.importKey(rcv_pubkey_pem, 'public');
 			ke = rcv_pubkey.encrypt(ke, 'hex', 'hex');
 
-			console.log()
-
 			var snd_privkey = new NodeRSA();
 			snd_privkey.importKey(snd_privkey_pem, 'private');
 			var sigData = header + iv + ciphertext + ke;
@@ -266,7 +264,6 @@ global.app = new Vue({
 			e.preventDefault();
 			this.chats.filter(c => c.chat_id == this.selectedChat)[0].members.forEach(function(member) {
 				var envelope = app.generateEnvelope(member.user_id)
-				console.log(envelope);
 				socket.emit('msg', envelope);
 			});
 			app.messageDrafts[app.selectedChat] = "";
@@ -304,9 +301,14 @@ global.app = new Vue({
 		},
 
 		scrollChatWindow() {
-			console.log("scroll scroll");
 			var element = document.getElementById('messageList');
 			element.scrollTop = element.scrollHeight
+		}
+	},
+
+	watch: {
+		selectedChat: function (newQuestion, oldQuestion) {
+			Vue.nextTick(app.scrollChatWindow);
 		}
 	},
 });
@@ -339,6 +341,7 @@ Vue.component('login-form', {
       username: "",
       password: "",
       didSubmitIncorrectCreds: false,
+      submitButtonIsDisabled: false,
     }
   },
 
@@ -348,6 +351,10 @@ Vue.component('login-form', {
   			this.didSubmitIncorrectCreds = true;
   			return;
   		}
+
+		NProgress.configure({ showSpinner: false });
+		this.submitButtonIsDisabled = true;
+  		NProgress.start();
 
   		var me = this;
 
@@ -364,6 +371,7 @@ Vue.component('login-form', {
 				me.didSubmitIncorrectCreds = false;
 				app.processSuccessfulLoginWithCredentials(response.data.user, me.password);
 			} else {
+				NProgress.done();
 				me.username = "";
 				me.password = "";
 				me.didSubmitIncorrectCreds = true;
@@ -378,12 +386,12 @@ Vue.component('login-form', {
 
   template: 
   `<div class="login-form">
-  	<h2>welcome.</h2>
-  	<p v-if="didSubmitIncorrectCreds">your credentials were incorrect. please try again.</p>
-  	<input placeholder="username" v-model="username"><br>
-  	<input type="password" placeholder="password" v-model="password"><br>
-  	<button @click="startLogin">log in</button><br>
-  	<p>or: <a href="#" @click.prevent.stop.once="goToRegistration">register</a></p>
+  	<h2>Welcome to PenguinEgg.</h2>
+  	<p v-if="didSubmitIncorrectCreds">Your credentials were incorrect. Please try again.</p>
+  	<input placeholder="Username" v-model="username"><br>
+  	<input type="password" placeholder="Password" v-model="password" v-on:keydown.enter="startLogin"><br>
+  	<button @click="startLogin" v-bind:disabled="this.submitButtonIsDisabled">{{ submitButtonIsDisabled ? "Loading..." : "Log in" }}</button><br>
+  	<p>Or: <a href="#" @click.prevent.stop.once="goToRegistration">Register</a></p>
   </div>`
 })
 },{}],4:[function(require,module,exports){
