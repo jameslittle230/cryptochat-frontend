@@ -147,6 +147,7 @@ global.app = new Vue({
 				app.keys = response.data.keys;
 				app.chats = response.data.chats;
 				app.messages = response.data.messages;
+				app.users = response.data.users;
 				console.log("Data loaded");
 			});
 		},

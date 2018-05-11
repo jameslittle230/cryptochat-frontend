@@ -30,7 +30,6 @@ Vue.component('login-form', {
 			}
 		}).then(function(response) {
 			if(response.data.success) {
-				console.log(response.data);
 				me.didSubmitIncorrectCreds = false;
 				app.processSuccessfulLoginWithCredentials(response.data.user, me.password);
 			} else {
