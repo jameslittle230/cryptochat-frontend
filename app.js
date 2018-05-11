@@ -39,7 +39,7 @@ socket.on('key-response', function(data) {
 			app.uiState = "chat";
 			Vue.nextTick(app.scrollChatWindow);
 		})
-		.catch(alert)
+		.catch(console.log)
 	}
 });
 
@@ -121,11 +121,13 @@ global.app = new Vue({
 			var public = key.exportKey('public');
 			var private = key.exportKey('private');
 
+			var iv = getRandomIV();
+
 			private = CryptoJS.AES.encrypt(
-				private, this.password
+				private, this.password, {iv: iv}
 			);
 
-			private = CryptoJS.enc.Base64.parse(private.toString()).toString(CryptoJS.enc.hex);
+			private = iv + CryptoJS.enc.Base64.parse(private.toString()).toString(CryptoJS.enc.hex);
 
 			var output = {
 				"public": public,
@@ -164,12 +166,15 @@ global.app = new Vue({
 			return new Promise((resolve, reject) => {
 				app.keys.map(key => {
 					if(key.user_id == app.currentUser.user_id) {
-						let ciphertext = CryptoJS.enc.Hex.parse(key.private_key_enc).toString(CryptoJS.enc.Base64);
+						let iv = key.private_key_enc.substring(0, 32);
+						var ciphertext = key.private_key_enc.substring(32, key.private_key_enc.length);
+						ciphertext = CryptoJS.enc.Hex.parse(ciphertext).toString(CryptoJS.enc.Base64);
 						var cipherobj = CryptoJS.AES.decrypt(
-							ciphertext, this.password
+							ciphertext, this.password, {iv: iv}
 						);
 
-						var private = cipherobj.toString(CryptoJS.enc.Utf8);
+						try{var private = cipherobj.toString(CryptoJS.enc.Utf8)}
+						catch(e) {console.log(e)};
 						key.private_key = private
 					}
 					return key;

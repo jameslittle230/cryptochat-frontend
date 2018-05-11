@@ -16,29 +16,31 @@ Vue.component('login-form', {
   		}
 
 		NProgress.configure({ showSpinner: false });
-		this.submitButtonIsDisabled = true;
-  		NProgress.start();
 
   		var me = this;
 
-  		axios({
-			method: 'post',
-			url: 'login',
-			data: {
-				"username": this.username,
-				"password": this.password
-			}
-		}).then(function(response) {
-			if(response.data.success) {
-				me.didSubmitIncorrectCreds = false;
-				app.processSuccessfulLoginWithCredentials(response.data.user, me.password);
-			} else {
-				NProgress.done();
-				me.username = "";
-				me.password = "";
-				me.didSubmitIncorrectCreds = true;
-			}
-		})
+  		if(!this.submitButtonIsDisabled) {
+			this.submitButtonIsDisabled = true;
+			NProgress.start();
+			axios({
+				method: 'post',
+				url: 'login',
+				data: {
+					"username": this.username,
+					"password": this.password
+				}
+			}).then(function(response) {
+				if(response.data.success) {
+					me.didSubmitIncorrectCreds = false;
+					app.processSuccessfulLoginWithCredentials(response.data.user, me.password);
+				} else {
+					NProgress.done();
+					me.username = "";
+					me.password = "";
+					me.didSubmitIncorrectCreds = true;
+				}
+			})
+		}
   	},
 
   	goToRegistration: function() {
