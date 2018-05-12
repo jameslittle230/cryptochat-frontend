@@ -73,6 +73,7 @@ function getRandomIV() {return getRandomValue(32);}
 function getRandomKE() {return getRandomValue(64);}
 
 require('./loginForm.js');
+require('./registerForm.js');
 require('./chatSelect.js');
 require('./message.js');
 

@@ -12,6 +12,8 @@
 		<div id="app">
 			<login-form v-if="uiState == 'login'"></login-form>
 
+			<register-form v-if="uiState == 'register'"></register-form>
+
 			<div class="chat-ui" v-if="uiState == 'chat'">
 				<div class="chats">
 					<chat-select v-for="chat in chats" :key="chat.chat_id"

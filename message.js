@@ -22,8 +22,12 @@ Vue.component('message', {
       return user.first_name + " " + user.last_name;
     },
 
+    username: function() {
+      return app.users.filter(u => u.user_id == this.message.snd)[0].username;
+    },
+
     backgroundColorStyleObject: function() {
-      var hue = parseInt(CryptoJS.MD5(this.fullName).toString().substring(0, 2), 16);
+      var hue = parseInt(CryptoJS.MD5(this.username).toString().substring(0, 2), 16);
       var colorString = "hsl(" + hue + ", 75%, 80%)";
 
       if(this.inMultipartyChat && !this.me) {
@@ -39,13 +43,7 @@ Vue.component('message', {
   filters: {
     timeago: function (value) {
       if (!value) return ''
-      console.log(value);
       return Moment.unix(value).fromNow();
-    },
-
-    fullName: function(id) {
-      if(!id) return '';
-      console.log(id);
     }
   },
 
