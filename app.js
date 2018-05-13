@@ -208,7 +208,7 @@ global.app = new Vue({
 			var iv = getRandomIV();
 			var ke = getRandomKE();
 			var payload = message;
-			var seqnum = this.chats.filter(c => c.chat_id == this.selectedChat)[0].sequence_number;
+			var seqnum = this.chats.filter(c => c.chat_id == this.selectedChat)[0].sequence_number + 1;
 			var snd = this.currentUser.user_id;
 			var rcv = rcv_id;
 			var cht = this.selectedChat;
@@ -265,18 +265,18 @@ global.app = new Vue({
 				payload = msg.substring(74, payload_endindex);
 				ke = msg.substring(payload_endindex, payload_endindex+256);
 				sig = msg.substring(payload_endindex+64, payload_endindex+256+256);
-
+				
 				var key = new NodeRSA(this.publicKeyForUserAndTimestamp(snd, timestamp));
-				var sigData = version + type + len + seq_num + snd + rcv + cht + timestamp + iv + payload + ke;
+				var sigData = msg.substring(0, 74) + payload + ke;
 				if(!key.verify(sigData, sig, 'hex', 'hex')) {
 					return false;
 				}
-
+/*
 				if(!chats[cht].sequence_number != seq_num) {
 					return false;
 				}
-
-				chats[cht].sequence_number++;
+*/
+				this.chats.filter((c) => c.chat_id == cht)[0].sequence_number++;
 
 				var rcv_privkey = new NodeRSA();
 				var rcv_privkey_pem = this.privateKeyForTimestamp(timestamp);
@@ -323,7 +323,7 @@ global.app = new Vue({
 		},
 
 		currentPublicKeyForUser(user_id) {
-			keys = this.keys.filter((key) => {return key.user_id == user_id && key.expired_at == null});
+			var keys = this.keys.filter((key) => {return key.user_id == user_id && key.expired_at == null});
 			if(keys.length == 0) {
 				return null;
 			}
@@ -331,19 +331,18 @@ global.app = new Vue({
 		},
 
 		keyForUserAndTimestamp(user_id, timestamp) {
-			keys = this.keys.filter((key) => {
+			for(var i=0; i<this.keys.length; i++) {
+				var key = this.keys[i];
 				let validDate = Moment.unix(timestamp).isBetween(
-					Moment.utc(key.created_at), 
+					Moment.utc(key.created_at),
 					key.expired_at ? Moment.utc(key.expired_at) : Moment.utc(Date.now())
 				);
 				let validUser = key.user_id == user_id;
-				return validDate && validUser;
-			});
-
-			if(keys.length == 0 || !keys[0].private_key) {
-				return null;
+				if(validDate && validUser) {
+					return key;
+				}
 			}
-			return keys[0];
+			return null;
 		},
 
 		publicKeyForUserAndTimestamp(user_id, timestamp) {
