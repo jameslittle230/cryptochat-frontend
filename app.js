@@ -264,19 +264,26 @@ global.app = new Vue({
 				payload_endindex = 74 + len;
 				payload = msg.substring(74, payload_endindex);
 				ke = msg.substring(payload_endindex, payload_endindex+256);
-				sig = msg.substring(payload_endindex+64, payload_endindex+256+256);
+				sig = msg.substring(payload_endindex+256, payload_endindex+256+256);
 				
-				var key = new NodeRSA(this.publicKeyForUserAndTimestamp(snd, timestamp));
+				var snd_pubkey_pem = this.publicKeyForUserAndTimestamp(snd, timestamp);
+				var key = new NodeRSA(snd_pubkey_pem);
 				var sigData = msg.substring(0, 74) + payload + ke;
+
 				if(!key.verify(sigData, sig, 'hex', 'hex')) {
 					return false;
 				}
-/*
-				if(!chats[cht].sequence_number != seq_num) {
+
+				var chat = this.chats.filter((c) => c.chat_id == cht)[0];
+
+				console.log(chat.sequence_number)
+
+				// Sequence numbers must be increasing with every message
+				if(seq_num <= chat.sequence_number) {
 					return false;
 				}
-*/
-				this.chats.filter((c) => c.chat_id == cht)[0].sequence_number++;
+
+				chat.sequence_number = seq_num;
 
 				var rcv_privkey = new NodeRSA();
 				var rcv_privkey_pem = this.privateKeyForTimestamp(timestamp);
@@ -298,6 +305,7 @@ global.app = new Vue({
 				snd: snd,
 				rcv: rcv,
 				cht: cht,
+				seq_num: seq_num,
 				timestamp: timestamp,
 				content: plaintext
 			};
