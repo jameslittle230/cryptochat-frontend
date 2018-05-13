@@ -38,6 +38,9 @@ Vue.component('register-form', {
 			if(!this.submitButtonIsDisabled) {
 				this.submitButtonIsDisabled = true;
 				NProgress.start();
+
+				let key = app.generateNewRsaKeypair(this.password);
+
 				axios({
 					method: 'post',
 					url: 'register',
@@ -45,7 +48,8 @@ Vue.component('register-form', {
 						"username": this.username,
 						"password": this.password,
 						"first": this.first,
-						"last": this.last
+						"last": this.last,
+						"key": key
 					}
 				}).then(function(response) {
 					if(response.data.success) {
@@ -68,6 +72,7 @@ Vue.component('register-form', {
 					me.password2 = "";
 					me.first = "";
 					me.last = "";
+					me.submitButtonIsDisabled = false;
 					me.didSubmitIncorrectCreds = true;
 					me.errorReason = response.data.errorReason;
 				})

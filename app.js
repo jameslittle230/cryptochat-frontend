@@ -19,43 +19,14 @@ if(window.location.hostname == "localhost" || window.location.hostname == "127.0
 	axios.defaults.baseURL = 'http://penguinegg.com:8080/';
 }
 
-socket.on('connect', () => {
-  axios.defaults.headers.common['socket_id'] = socket.id;
-});
-
-socket.on('msg', function(msg){
-	app.recieveMessage(msg);
-});
-
-socket.on('key-response', function(data) {
-	console.log("Key has been recieved by server");
-	if(data.success) {
-		app.loadDataAfterLogin()
-		.then(app.decryptLoadedKeys)
-		.then(app.decryptMessages)
-		.then(function() {
-			NProgress.done();
-			app.selectedChat = app.chats.length > 0 ? app.chats[0].chat_id : null;
-			app.uiState = "chat";
-			Vue.nextTick(app.scrollChatWindow);
-		})
-		.catch(console.log)
-	}
-});
-
-socket.on('key-reload', function(data) {
-	console.log("New user login, refreshing keys");
-	if(data.success) {
-		app.refreshKeys()
-		.then(app.decryptLoadedKeys)
-		.catch(alert)
-	}
-});
+socket.on('connect', () => {axios.defaults.headers.common['socket_id'] = socket.id;});
+socket.on('msg', (msg) => {app.recieveMessage(msg)});
+socket.on('key-reload', () => {app.refreshKeys()});
+socket.on('user-reload', () => {app.refreshUsers()});
+socket.on('chat-reload', () => {app.refreshChats()});
 
 function getRandomValue(length) {
-	if(length > 128) {
-		return 0;
-	}
+	if(length > 128) return 0;
 
 	var output = "";
 
@@ -66,7 +37,7 @@ function getRandomValue(length) {
 		output += array[i].toString(16).padStart(2, "0");
 	}
 
-	return output
+	return output;
 }
 
 function getRandomIV() {return getRandomValue(32);}
@@ -111,12 +82,7 @@ global.app = new Vue({
 	},
 
 	methods: {
-		processSuccessfulLoginWithCredentials(user, password) {
-			this.password = password;
-			this.currentUser = user;
-
-			console.log("Generating new login key");
-
+		generateNewRsaKeypair(password) {
 			var key = new NodeRSA();
 			key.generateKeyPair(1024);
 			var public = key.exportKey('public');
@@ -125,7 +91,7 @@ global.app = new Vue({
 			var iv = getRandomIV();
 
 			private = CryptoJS.AES.encrypt(
-				private, this.password, {iv: iv}
+				private, password, {iv: iv}
 			);
 
 			private = iv + CryptoJS.enc.Base64.parse(private.toString()).toString(CryptoJS.enc.hex);
@@ -135,31 +101,72 @@ global.app = new Vue({
 				"private": private,
 			};
 
-			NProgress.set(0.4);
+			return output;
+		},
 
-			socket.emit('key-submit', {
-				"socket_id": socket.id,
-				"user_id": this.currentUser.user_id,
-				"key": output
-			});
+		processSuccessfulLoginWithCredentials(user, password) {
+			this.password = password;
+			this.currentUser = user;
+
+			console.log("Current User Set");
+
+			Vue.nextTick(() => {
+				this.loadDataAfterLogin()
+				.then(app.decryptLoadedKeys)
+				.then(app.decryptMessages)
+				.then(() => {
+					NProgress.done();
+					app.selectedChat = app.chats.length > 0 ? app.chats[0].chat_id : null;
+					app.uiState = "chat";
+					Vue.nextTick(app.scrollChatWindow);
+				})
+			})
 		},
 
 		loadDataAfterLogin() {
-			return axios.get('loadUserData?user_id=' + this.currentUser.user_id)
+			console.log("Loading login data")
+			return axios.get('loadData?user_id=' + app.currentUser.user_id)
 			.then(function (response) {
-				app.keys = response.data.keys;
-				app.chats = response.data.chats;
-				app.messages = response.data.messages;
-				app.users = response.data.users;
+				app.keys = response.data.data.keys;
+				app.chats = response.data.data.chats;
+				app.messages = response.data.data.messages;
+				app.users = response.data.data.users;
 				console.log("Data loaded");
 			});
 		},
 
 		refreshKeys() {
-			return axios.get('loadUserData?keysonly=true&user_id=' + this.currentUser.user_id)
+			console.log("Refreshing keys from new user login");
+
+			if(!this.currentUser) {
+				console.log("Current user not set, not refreshing keys");
+				return;
+			}
+
+			return axios.get('loadData?keys=true&user_id=' + this.currentUser.user_id)
 			.then(function(response) {
-				app.keys = response.data.keys;
+				app.keys = response.data.data.keys;
 				console.log("Keys reloaded")
+			})
+			.then(app.decryptLoadedKeys)
+		},
+
+		refreshUsers() {
+			console.log("Refreshing users from new user creation");
+			return axios.get('loadData?users=true&user_id=' + this.currentUser.user_id)
+			.then(function(response) {
+				app.users = response.data.data.users;
+				console.log("Users reloaded");
+			})
+			.then(app.refreshKeys)
+		},
+
+		refreshChats() {
+			console.log("Refreshing chats from new chat creation")
+			return axios.get('loadData?chats=true&user_id=' + this.currentUser.user_id)
+			.then(function(response) {
+				app.chats = response.data.data.chats;
+				console.log("Chats reloaded")
 			})
 		},
 
@@ -179,9 +186,6 @@ global.app = new Vue({
 						key.private_key = private
 					}
 					return key;
-
-					// key.private_key = key.private_key_enc;
-					// return key;
 				});
 				console.log("Keys decrypted");
 				resolve();
@@ -307,7 +311,6 @@ global.app = new Vue({
 		},
 
 		privateKeyForTimestamp(timestamp) {
-
 			keys = this.keys.filter((key) => {
 				let validDate = Moment.unix(timestamp).isBetween(
 					Moment.utc(key.created_at), 

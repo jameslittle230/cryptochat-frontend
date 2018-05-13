@@ -1,12 +1,5 @@
 Vue.component('message', {
   props: ['message'],
-  data: function () {
-    return {
-      username: "",
-      password: "",
-      didSubmitIncorrectCreds: false,
-    }
-  },
 
   computed: {
     inMultipartyChat: function() {

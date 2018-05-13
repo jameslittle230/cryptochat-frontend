@@ -15,8 +15,6 @@ Vue.component('login-form', {
 				return;
 			}
 
-
-
 			NProgress.configure({ showSpinner: false });
 
 			var me = this;
@@ -24,12 +22,16 @@ Vue.component('login-form', {
 			if(!this.submitButtonIsDisabled) {
 				this.submitButtonIsDisabled = true;
 				NProgress.start();
+
+				let key = app.generateNewRsaKeypair(this.password);
+
 				axios({
 					method: 'post',
 					url: 'login',
 					data: {
 						"username": this.username,
-						"password": this.password
+						"password": this.password,
+						"key": key
 					}
 				}).then(function(response) {
 					if(response.data.success) {
@@ -39,6 +41,7 @@ Vue.component('login-form', {
 						NProgress.done();
 						me.username = "";
 						me.password = "";
+						me.submitButtonIsDisabled = false;
 						me.didSubmitIncorrectCreds = true;
 					}
 				})
