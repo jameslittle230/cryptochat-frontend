@@ -69,6 +69,10 @@ global.app = new Vue({
 		messages: [],
 		decryptedMessages: [],
 		users: [],
+
+		// New Chat Data
+		isChatCreationDialogOpen: false,
+		potentialChatUsers: [],
 	},
 
 	computed: {
@@ -200,10 +204,10 @@ global.app = new Vue({
 			});
 		},
 
-		generateEnvelope: function(rcv_id, callback) {
+		generateEnvelope: function(message, rcv_id) {
 			var iv = getRandomIV();
 			var ke = getRandomKE();
-			var payload = this.messageDrafts[this.selectedChat];
+			var payload = message;
 			var seqnum = this.chats.filter(c => c.chat_id == this.selectedChat)[0].sequence_number;
 			var snd = this.currentUser.user_id;
 			var rcv = rcv_id;
@@ -289,11 +293,12 @@ global.app = new Vue({
 
 		sendMessage: function(e) {
 			e.preventDefault();
+			const message = this.messageDrafts[this.selectedChat];
+			this.messageDrafts[this.selectedChat] = "";
 			this.chats.filter(c => c.chat_id == this.selectedChat)[0].members.forEach(function(member) {
-				var envelope = app.generateEnvelope(member.user_id)
+				var envelope = app.generateEnvelope(message, member.user_id)
 				socket.emit('msg', envelope);
 			});
-			app.messageDrafts[app.selectedChat] = "";
 		},
 
 		recieveMessage: function(msg) {
@@ -329,7 +334,41 @@ global.app = new Vue({
 		scrollChatWindow() {
 			var element = document.getElementById('messageList');
 			element.scrollTop = element.scrollHeight
-		}
+		},
+
+		openChatCreationDialog() {
+			this.isChatCreationDialogOpen = true;
+		},
+
+		closeChatCreationDialog() {
+			this.isChatCreationDialogOpen = false;
+			this.potentialChatUsers = [];
+		},
+
+		toggleUserInPotentialChat(user_id) {
+			if(this.potentialChatUsers.indexOf(user_id) == -1) {
+				this.potentialChatUsers.push(user_id);
+			} else {
+				var index = array.indexOf(user_id);
+				array.splice(index, 1);
+			}
+		},
+
+		createChat() {
+			this.potentialChatUsers.push(this.currentUser.user_id)
+			axios({
+				method: 'post',
+				url: 'newChat',
+				data: {
+					user_id: this.currentUser.user_id,
+					members: JSON.stringify(this.potentialChatUsers)
+				}
+			}).then((response) => {
+				if(response.data.success) {
+					this.closeChatCreationDialog()
+				}
+			});
+		},
 	},
 
 	watch: {
