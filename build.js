@@ -268,6 +268,18 @@ global.app = new Vue({
 				ke = msg.substring(payload_endindex, payload_endindex+256);
 				sig = msg.substring(payload_endindex+64, payload_endindex+256+256);
 
+				var key = new NodeRSA(this.publicKeyForUserAndTimestamp(snd, timestamp));
+				var sigData = version + type + len + seq_num + snd + rcv + cht + timestamp + iv + payload + ke;
+				if(!key.verify(sigData, sig, 'hex', 'hex')) {
+					return false;
+				}
+
+				if(!chats[cht].sequence_number != seq_num) {
+					return false;
+				}
+
+				chats[cht].sequence_number++;
+
 				var rcv_privkey = new NodeRSA();
 				var rcv_privkey_pem = this.privateKeyForTimestamp(timestamp);
 				rcv_privkey.importKey(rcv_privkey_pem, "private");
@@ -305,6 +317,9 @@ global.app = new Vue({
 
 		recieveMessage: function(msg) {
 			msg = this.parseMessage(msg);
+			if(!msg) {
+				return;
+			}
 			this.decryptedMessages.push(msg)
 			Vue.nextTick(app.scrollChatWindow);
 		},
@@ -317,20 +332,28 @@ global.app = new Vue({
 			return keys[0].public_key;
 		},
 
-		privateKeyForTimestamp(timestamp) {
+		keyForUserAndTimestamp(user_id, timestamp) {
 			keys = this.keys.filter((key) => {
 				let validDate = Moment.unix(timestamp).isBetween(
 					Moment.utc(key.created_at), 
 					key.expired_at ? Moment.utc(key.expired_at) : Moment.utc(Date.now())
 				);
-				let validUser = key.user_id == app.currentUser.user_id;
+				let validUser = key.user_id == user_id;
 				return validDate && validUser;
 			});
 
 			if(keys.length == 0 || !keys[0].private_key) {
 				return null;
 			}
-			return keys[0].private_key;
+			return keys[0];
+		},
+
+		publicKeyForUserAndTimestamp(user_id, timestamp) {
+			return this.keyForUserAndTimestamp(user_id, timestamp).public_key
+		},
+
+		privateKeyForTimestamp(timestamp) {
+			return this.keyForUserAndTimestamp(this.currentUser.user_id, timestamp).private_key
 		},
 
 		scrollChatWindow() {
@@ -379,7 +402,6 @@ global.app = new Vue({
 		}
 	},
 });
-
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./chatSelect.js":2,"./loginForm.js":3,"./message.js":4,"./registerForm.js":89,"axios":11,"crypto-js":44,"moment":71,"node-rsa":72,"vue/dist/vue.js":88}],2:[function(require,module,exports){
 Vue.component('chat-select', {
