@@ -276,8 +276,6 @@ global.app = new Vue({
 
 				var chat = this.chats.filter((c) => c.chat_id == cht)[0];
 
-				console.log(chat.sequence_number)
-
 				// Sequence numbers must be increasing with every message
 				if(seq_num <= chat.sequence_number) {
 					return false;
