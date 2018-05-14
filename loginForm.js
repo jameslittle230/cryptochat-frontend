@@ -9,15 +9,19 @@ Vue.component('login-form', {
 	},
 
 	methods: {
+		resetData: function() {
+			NProgress.done();
+			this.username = "";
+			this.password = "";
+			this.submitButtonIsDisabled = false;
+			this.didSubmitIncorrectCreds = true;
+		},
+
 		startLogin: function() {
 			if(this.username == "") {
 				this.didSubmitIncorrectCreds = true;
 				return;
 			}
-
-			NProgress.configure({ showSpinner: false });
-
-			var me = this;
 
 			if(!this.submitButtonIsDisabled) {
 				this.submitButtonIsDisabled = true;
@@ -33,17 +37,15 @@ Vue.component('login-form', {
 						"password": this.password,
 						"key": key
 					}
-				}).then(function(response) {
+				}).then((response) => {
 					if(response.data.success) {
-						me.didSubmitIncorrectCreds = false;
-						app.processSuccessfulLoginWithCredentials(response.data.user, me.password);
+						this.didSubmitIncorrectCreds = false;
+						app.processSuccessfulLoginWithCredentials(response.data.user, this.password);
 					} else {
-						NProgress.done();
-						me.username = "";
-						me.password = "";
-						me.submitButtonIsDisabled = false;
-						me.didSubmitIncorrectCreds = true;
+						this.resetData();
 					}
+				}).catch((error) => {
+					this.resetData();
 				})
 			}
 		},
@@ -51,6 +53,10 @@ Vue.component('login-form', {
 		goToRegistration: function() {
 			app.uiState = "register";
 		}
+	},
+
+	mounted: function() {
+		NProgress.configure({ showSpinner: false });
 	},
 
 	template: 
