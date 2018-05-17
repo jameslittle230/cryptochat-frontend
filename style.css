@@ -1,10 +1,16 @@
+@import url('https://rsms.me/inter/inter-ui.css');
+
 *, *:before, *:after {
 	box-sizing: border-box;
 }
 
 body {
-	font-family: sans-serif;
+	font-family: 'Inter UI', sans-serif;
 	margin: 0;
+}
+
+input, button {
+	font-family: 'Inter UI', sans-serif;
 }
 
 .chat-ui {
@@ -12,15 +18,32 @@ body {
 	height: 100vh;
 	width: 100vw;
 	grid-template-columns: 30% auto;
-	grid-template-rows: auto 25%;
+	grid-template-rows: 35px auto 25%;
 }
 
 .chats {
 	background: #eee;
 	grid-column-start: 1;
 	grid-column-end: 2;
+	grid-row-start: 2;
+	grid-row-end: 4;
+	border-right: 1px solid hsla(0, 0%, 0%, 0.4);
+	overflow-y: scroll;
+}
+
+.top-bar {
+	background-color: #2c3e50;
+	grid-column-start: 1;
+	grid-column-end: 3;
 	grid-row-start: 1;
-	grid-row-end: 3;
+	grid-row-end: 2;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 12px;
+	border-bottom: 1px solid hsla(0, 0%, 0%, 0.4);
+	font-weight: bold;
+	color: white;
 }
 
 .chat-select {
@@ -35,8 +58,8 @@ body {
 .messages {
 	grid-column-start: 2;
 	grid-column-end: 3;
-	grid-row-start: 1;
-	grid-row-end: 2;
+	grid-row-start: 2;
+	grid-row-end: 3;
 
 	padding: 12px;
 	overflow-y: scroll;
@@ -45,8 +68,8 @@ body {
 .compose {
 	grid-column-start: 2;
 	grid-column-end: 3;
-	grid-row-start: 2;
-	grid-row-end: 3;
+	grid-row-start: 3;
+	grid-row-end: 4;
 
 	display: flex;
 }
@@ -55,6 +78,10 @@ body {
 	width: 100%;
 	padding: 5px;
 	font-family: sans-serif;
+}
+
+.compose textarea.compromised {
+	color: red;
 }
 
 .message {
@@ -73,7 +100,7 @@ body {
 
 .message.me {
 	margin-left: auto;
-	background: #104975;
+	background: #2c3e50;
 	color: white;
 }
 
@@ -108,10 +135,14 @@ body {
 	left: 0;
 	bottom: 2.5rem;
 	width: 100%;
-	/*height: 100%;*/
 	padding: 0 20px;
 	overflow: auto;
 	background-color: white;
+}
+
+.modal__body--padding {
+	padding-top: 20px;
+	padding-bottom: 20px;
 }
 
 .modal__header {
@@ -167,7 +198,7 @@ body {
 }
 
 /* When the checkbox is checked, add a blue background */
-.checkmark.checked {
+.checkmark.checked, .user-select:hover .checkmark.checked {
 	background-color: #2196F3;
 }
 
@@ -194,4 +225,36 @@ body {
 	-webkit-transform: rotate(45deg);
 	-ms-transform: rotate(45deg);
 	transform: rotate(45deg);
+}
+
+.loader {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #34495e;
+}
+
+.loader img {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translateX(-50%) translateY(-50%);
+}
+
+.hidden {
+	display: none;
+}
+
+.hidden.never-mind {
+	display: block;
+}
+
+.v-enter-active, .v-leave-active {
+	transition: opacity 0.33s ease-out;
+}
+
+.v-enter, .v-leave-to {
+	opacity: 0;
 }

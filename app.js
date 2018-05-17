@@ -4,6 +4,12 @@ global.CryptoJS = require('crypto-js');
 global.NodeRSA = require('node-rsa');
 global.Moment = require('moment')
 
+global.toasted = new Toasted({
+    position : 'bottom-left',
+    theme : 'alive',
+    duration: 3000
+})
+
 try { io } catch(e) {
 	console.log("Not connected to IO.")
 	app.connectionWarning = true;
@@ -52,6 +58,7 @@ global.app = new Vue({
 	el: '#app',
 	data: {
 		uiState: "login", // login, register, chat
+		loaded: false,
 
 		// User/Cryptographic information
 		currentUser: null,
@@ -73,6 +80,14 @@ global.app = new Vue({
 		// New Chat Data
 		isChatCreationDialogOpen: false,
 		potentialChatUsers: [],
+
+		// Attacks
+		isAttackDialogOpen: false,
+		lastEnvelopeSent: "",
+		nextMessageSentWithFalseUser: false,
+
+		// Little workaround so reload works
+		window: window,
 	},
 
 	computed: {
@@ -214,6 +229,10 @@ global.app = new Vue({
 			var cht = this.selectedChat;
 			var snd_privkey_pem = this.currentSenderPrivateKey;
 
+			if(this.nextMessageSentWithFalseUser) {
+				snd = 2;
+			}
+
 			var ciphertext = CryptoJS.AES.encrypt(
 				payload, ke, {iv: iv}
 			);
@@ -271,14 +290,14 @@ global.app = new Vue({
 				var sigData = msg.substring(0, 74) + payload + ke;
 
 				if(!key.verify(sigData, sig, 'hex', 'hex')) {
-					return false;
+					return {error: "New message signature cannot be verified, attack detected and blocked"};
 				}
 
 				var chat = this.chats.filter((c) => c.chat_id == cht)[0];
 
 				// Sequence numbers must be increasing with every message
 				if(seq_num <= chat.sequence_number) {
-					return false;
+					return {error: "New message sequence number is too low, replay attack detected and blocked"};
 				}
 
 				chat.sequence_number = seq_num;
@@ -313,17 +332,32 @@ global.app = new Vue({
 			e.preventDefault();
 			const message = this.messageDrafts[this.selectedChat];
 			this.messageDrafts[this.selectedChat] = "";
-			this.chats.filter(c => c.chat_id == this.selectedChat)[0].members.forEach(function(member) {
-				var envelope = app.generateEnvelope(message, member.user_id)
+			this.chats.filter(c => c.chat_id == this.selectedChat)[0].members.forEach((member) => {
+				var envelope = this.generateEnvelope(message, member.user_id)
+				this.lastEnvelopeSent = envelope;
 				socket.emit('msg', envelope);
 			});
+
+			if(this.nextMessageSentWithFalseUser) {
+				this.nextMessageSentWithFalseUser = false;
+			}
 		},
 
 		recieveMessage: function(msg) {
 			msg = this.parseMessage(msg);
-			if(!msg) {
-				return;
+
+			if(msg.error) {
+				toasted.show(msg.error);
 			}
+
+			if(msg.cht && msg.cht != this.selectedChat) {
+				let chatInfo = this.chats.filter((c) => c.chat_id == msg.cht)[0].members
+					.filter((m) => m.user_id != this.currentUser.user_id)
+					.map((m) => m.first_name + " " + m.last_name).join(", ");
+					
+				toasted.show("New message in chat with " + chatInfo);
+			}
+
 			this.decryptedMessages.push(msg)
 			Vue.nextTick(app.scrollChatWindow);
 		},
@@ -397,6 +431,16 @@ global.app = new Vue({
 				}
 			});
 		},
+
+		replayAttack() {
+			socket.emit('msg', this.lastEnvelopeSent);
+			this.isAttackDialogOpen = false;
+		}
+
+	},
+
+	mounted: function() {
+		this.loaded = true;
 	},
 
 	watch: {

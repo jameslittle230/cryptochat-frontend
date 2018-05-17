@@ -5,62 +5,101 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 		<title>CryptoChat: Secure Online Messaging</title>
 		<link rel="stylesheet" href="https://unpkg.com/nprogress@0.2.0/nprogress.css">
+		<link rel="stylesheet" href="https://unpkg.com/toastedjs/dist/toasted.min.css">
 		<link rel="stylesheet" href="/normalize.css">
 		<link rel="stylesheet" href="/style.css">
 	</head>
 	<body>
 		<div id="app">
-			<login-form v-if="uiState == 'login'"></login-form>
-
-			<register-form v-if="uiState == 'register'"></register-form>
-
-			<div class="chat-ui" v-if="uiState == 'chat'">
-				<div class="chats">
-					<div class="new-chat-button-wrapper"><button v-on:click="openChatCreationDialog">New Chat</button></div>
-					<chat-select v-for="chat in chats" :key="chat.chat_id"
-						v-bind:chat="chat"
-						v-bind:class="{selected: selectedChat == chat.chat_id}"
-						v-on:click="console.log(chat.chat_id)"></chat-select>
+			<transition>
+				<div class="loader" v-if="!loaded">
+					<img src="rings.svg" alt="" width="60">
 				</div>
+			</transition>
+			<div class="hidden" v-bind:class="{'never-mind': loaded}">
+				<login-form v-if="uiState == 'login'"></login-form>
 
-				<div class="messages" id="messageList">
-					<message v-for="message in decryptedMessages" :key="message.timestamp"
-						v-if="message.cht == selectedChat"
-						v-bind:message="message"></message>
+				<register-form v-if="uiState == 'register'"></register-form>
+
+				<transition>
+				<div class="chat-ui" v-if="uiState == 'chat'">
+					<div class="top-bar">
+						<div class="left">{{ currentUser.first_name }} {{ currentUser.last_name}} <small>({{ currentUser.username }})</small></div>
+						<div class="right">
+							<button v-on:click="isAttackDialogOpen = true">Attack!</button>
+							<button v-on:click="window.location.reload()">Log Out</button>
+						</div>	
+					</div>
+
+					<div class="chats">
+						<div class="new-chat-button-wrapper"><button v-on:click="openChatCreationDialog">New Chat</button></div>
+						<chat-select v-for="chat in chats" :key="chat.chat_id"
+							v-bind:chat="chat"
+							v-bind:class="{selected: selectedChat == chat.chat_id}"
+							v-on:click="console.log(chat.chat_id)"></chat-select>
+					</div>
+
+					<div class="messages" id="messageList">
+						<message v-for="message in decryptedMessages" :key="message.timestamp"
+							v-if="message.cht == selectedChat"
+							v-bind:message="message"></message>
+					</div>
+
+					<div class="compose" v-if="selectedChat">
+						<textarea id="composeWindow" autocomplete="off"
+							placeholder="Press enter to send" 
+							v-model="messageDrafts[selectedChat]"
+							v-on:keydown.enter="sendMessage"
+							v-bind:class="{'compromised': nextMessageSentWithFalseUser}"></textarea>
+						<button v-on:click="sendMessage">Send</button>
+					</div>
 				</div>
+				</transition>
+					
+				<transition>
+				<div class="new-chat-modal" v-if="isChatCreationDialogOpen">
+					<div class="backdrop"></div>
+					<div class="modal">
+						<div class="modal__header">New Chat</div>
+						<div class="modal__body">
+							<div class="user-select" 
+								v-for="user in users"
+								v-if="user.user_id != currentUser.user_id"
+								v-on:click="toggleUserInPotentialChat(user.user_id)">
+								<div class="checkmark" 
+									v-bind:class="
+									{checked: (potentialChatUsers.indexOf(user.user_id) != -1)}">
+										
+								</div>
 
-				<div class="compose" v-if="selectedChat">
-					<textarea id="composeWindow" autocomplete="off"
-						v-model="messageDrafts[selectedChat]"
-						v-on:keydown.enter="sendMessage"></textarea>
-					<button v-on:click="sendMessage">Send</button>
-				</div>
-			</div>
-
-			<div class="new-chat-modal" v-if="isChatCreationDialogOpen">
-				<div class="backdrop"></div>
-				<div class="modal">
-					<div class="modal__header">New Chat</div>
-					<div class="modal__body">
-						<div class="user-select" 
-							v-for="user in users"
-							v-if="user.user_id != currentUser.user_id"
-							v-on:click="toggleUserInPotentialChat(user.user_id)">
-							<div class="checkmark" 
-								v-bind:class="
-								{checked: (potentialChatUsers.indexOf(user.user_id) != -1)}">
-									
+								<div class="name">{{ user.first_name }} {{ user.last_name }}</div>
+								<div class="username">{{ user.username }}</div>
 							</div>
-
-							<div class="name">{{ user.first_name }} {{ user.last_name }}</div>
-							<div class="username">{{ user.username }}</div>
+						</div>
+						<div class="modal__footer">
+							<button v-on:click="closeChatCreationDialog">Cancel</button>
+							<button v-on:click="createChat">Begin Chat</button>
 						</div>
 					</div>
-					<div class="modal__footer">
-						<button v-on:click="closeChatCreationDialog">Cancel</button>
-						<button v-on:click="createChat">Begin Chat</button>
+				</div>
+				</transition>
+
+				<transition>
+				<div class="new-chat-modal" v-if="isAttackDialogOpen">
+					<div class="backdrop"></div>
+					<div class="modal">
+						<div class="modal__header">Initiate Cryptographic Attack 🔐</div>
+						<div class="modal__body modal__body--padding">
+							<button v-on:click="replayAttack">Perform Replay Attack</button><br>
+							<button v-on:click="nextMessageSentWithFalseUser = true; isAttackDialogOpen = false">Spoof Sender</button>
+						</div>
+						<div class="modal__footer">
+							<button v-on:click="isAttackDialogOpen = false">Cancel</button>
+						</div>
 					</div>
 				</div>
+				</transition>
+
 			</div>
 		</div>
 
@@ -73,6 +112,7 @@
 		</script>
 
 		<script src="https://unpkg.com/nprogress@0.2.0/nprogress.js"></script>
+		<script src="https://unpkg.com/toastedjs/dist/toasted.min.js"></script>
 		<script src="build.js"></script>
 	</body>
 </html>
